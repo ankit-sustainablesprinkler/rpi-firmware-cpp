@@ -10,7 +10,7 @@
 #define MODEM_CHUNK_SIZE 2048
 #define BUFFER_SIZE 1048576
 
-//#include  "serial_driver.h"
+#include  "serial_driver.h"
 
 class SerialDriver;
 

@@ -233,6 +233,10 @@ int main(int argc, char **argv)
 		state_getState(s3state);
 		s3state.flow_feedback[0].header.type = bin_protocol::FLOW;
 		s3state.flow_feedback[1].header.type = bin_protocol::FLOW;
+		
+		thread led_thread(LEDThread);
+		thread lcm_thread(LCMThread);
+		thread wdt_thread(WDTThread);
 
 		int modem_fail_count = 0;
 		modem->init();
@@ -245,7 +249,7 @@ int main(int argc, char **argv)
 #endif
 		modem->Open(SERIAL_PORT, 115200);
 
-		if(modem->waitForReady()){
+		if(modem->waitForReady(60)){
 			string response;
 			modem->SendCmd("I", response);
 
@@ -285,10 +289,7 @@ int main(int argc, char **argv)
 			//routine for updating time from RTC
 			RTC_fitted = update_from_RTC();
 		*/
-		thread wdt_thread(WDTThread);
 		thread modem_thread(modemThread, RTC_fitted);
-		thread led_thread(LEDThread);
-		thread lcm_thread(LCMThread);
 
 		//load config and schedule
 		Schedule schedule;
@@ -324,9 +325,12 @@ int main(int argc, char **argv)
 		//send first heartbeat
 		//string extra_content = "";
 		
-		Heartbeat heartbeat = getHeartbeat(extra_content);
-		message_string = heartbeat.toBinary();
-		modem_cond.notify_all();
+
+		if(runTime.isModemEnabled()){
+			Heartbeat heartbeat = getHeartbeat(extra_content);
+			message_string = heartbeat.toBinary();
+			modem_cond.notify_all();
+		}
 		this_thread::sleep_for(chrono::seconds(1));
 
 
@@ -558,7 +562,7 @@ int main(int argc, char **argv)
 			}
 
 			//cout << flow_feedback_ready << "  " << feedback_ready << endl;
-
+			//cout << s3state.var.current_feedback_time << endl;
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 	}

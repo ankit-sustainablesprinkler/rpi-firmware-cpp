@@ -56,6 +56,7 @@ ModemDriver::ModemDriver()
 
 ModemDriver::~ModemDriver()
 {
+	std::cout << "Modem Driver DESTRUCT ==========================================================================================================================================================================" << std::endl;
 	delete[] reply;
 	delete port;
 	port = nullptr;
@@ -131,11 +132,12 @@ bool ModemDriver::read_data (posix_time::time_duration timeout, size_t &len)
 			try {
 				read = port->read(chunk, sizeof(chunk));
 			} catch (const TimeoutException &e) {
-
+			//	std::cout << e.what() << std::endl;
 			}
 			if (read) buffer.insert(buffer.end(), chunk, chunk + read);
 		}
 		if (!buffer.empty() && (wr_ix < (BUFFER_SIZE - 1))) {
+			start = time();
 			reply[wr_ix++] = buffer[0];
 			buffer.erase(buffer.begin());
 		}
@@ -422,19 +424,16 @@ bool  ModemDriver::process_data (posix_time::time_duration timeout)
 
 	if (!valid) {
 		if (len > 0) {
+			std::cout << "Reply timeout" << std::endl;
 			TRACE_INFO("Modem reply timed out.\r\nPending Data {", reply, "}\r\n");
 #if defined DEBUG_MODEM
 			std::cout << "Pending Binary {";
-#endif
 			for (int ix = 0; ix < len; ix++) {
 				if ((ix % 16) == 0)
-#if defined DEBUG_MODEM
 					std::cout << std::endl;
-#endif
 
 				printf("%02X ", reply[ix]);
 			}
-#if defined DEBUG_MODEM
 			std::cout << "}" << std::endl;
 #endif
 		} else if (buffer.size() > 0) {
@@ -581,9 +580,18 @@ bool ModemDriver::is_final_result(const char* reply, bool end_on_ok)
 
 bool ModemDriver::SendData(const std::string &data)
 {
+	std::cout << "poop 460" << std::endl;
 	flush();
+	std::cout << "poop 461 " << (int) port << std::endl;
+	if(port)
+		return port->write(data);
+	else
+	{
+		port = new SerialDriver();
+		return false;
+	}
 
-	return port->write(data);
+	
 }
 
 bool ModemDriver::SendCmd(const std::string &cmd, std::string &data, posix_time::time_duration timeout, bool end_on_ok)
@@ -639,9 +647,16 @@ bool ModemDriver::WaitURC (const std::string &urc, std::string &data, posix_time
 void ModemDriver::exitDataMode()
 {
 
+	std::cout << "poop45" << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+	
+	std::cout << "poop46" << std::endl;
 	SendData("+++");
+	
+	std::cout << "poop47" << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+	
+	std::cout << "poop48" << std::endl;
 	//std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	//SendData("+");
 //	SendData("+");

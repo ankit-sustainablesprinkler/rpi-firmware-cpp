@@ -68,7 +68,7 @@ bool SerialDriverImpl::open(boost::string_ref device, int baudrate)
     	port.set_option(serial_port_base::baud_rate(baudrate));
     	port.set_option(serial_port_base::parity(serial_port_base::parity::none));
     	port.set_option(serial_port_base::character_size(8));
-    	port.set_option(serial_port_base::flow_control(serial_port_base::flow_control::none));
+    	port.set_option(serial_port_base::flow_control(serial_port_base::flow_control::hardware));
     	port.set_option(serial_port_base::stop_bits(serial_port_base::stop_bits::one));
 
     } catch(const std::exception &e) {
@@ -139,6 +139,7 @@ streamsize SerialDriverImpl::write(boost::string_ref s)
     try {
         return asio::write(port,asio::buffer(s.to_string()));
     } catch (const std::exception &e) {
+        std::cout << e.what() << std::endl;
         throw(ios_base::failure(e.what()));
     }
 }

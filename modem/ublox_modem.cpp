@@ -388,24 +388,30 @@ bool SARA_R410M::sendRequest(const std::string &headers, modem_reply_t &message)
 			return false;
 
 		} else {
-			std::cout << "Poop 3" << std::endl;
+			std::cout << "Poop 3a" << std::endl;
 			modem->exitDataMode();
 			//modem->SendCmd("+USOCL=0", response);
 
 		}
+        std::cout << "poop 4" << std::endl;
 		bool valid_http = data.find("HTTP/1.1 ") == 0;
-
+        std::cout << "poop 5" << std::endl;
 		if (valid_http && (data.length() >= 20)) {
 			std::cout << "REPLY LENGTH: " << data.length() << std::endl;
 			message.statusCode = std::stoi(data.substr(9, 3));
 			message.reasonPhrase = data.substr(13, data.find("\r\n") - 13);
 			message.response_headers = data.substr(data.find("\r\n") + 2, data.find("\r\n\r\n") - data.find("\r\n") - 2);
-			int length_pos = data.find("Content-Length:") + 16;
-			int length = std::stoi(data.substr(length_pos,data.find("\r\n",length_pos)-length_pos));
-			size_t index = data.find("\r\n\r\n");
-			data = data.substr(0, index+4+length);
+            
+			size_t index = data.find("\r\n\r\n") + 4; //place pointer at the beginning of the content
+
+			int length_pos = data.find("Content-Length:");
+            if(length_pos != std::string::npos){
+                length_pos += 16; //length of key string
+                int length = std::stoi(data.substr(length_pos,data.find("\r\n",length_pos)-length_pos));
+			    data = data.substr(0, index+length);
+            }
+			
 			if (index > 0) {
-				index += 4;
 				if (data.find("Transfer-Encoding: chunked") != std::string::npos) {
 					std::cout << "Receiving Chunked data" << std::endl;
 					std::string delimiter = "\r\n";
@@ -414,6 +420,7 @@ bool SARA_R410M::sendRequest(const std::string &headers, modem_reply_t &message)
 					while ((pos = data.find(delimiter, prev_pos + 1)) != std::string::npos) {
 						token = data.substr(prev_pos, pos - prev_pos);
 						int len = std::stoul(token, nullptr, 16);
+                        if(!len) break; //zero length indicates end of transfer
 						pos += delimiter.length();
 						message.response_messageBody += data.substr(pos, len);
 						pos += len;

@@ -773,6 +773,7 @@ bool NL_SW_LTE_GELS3::sendRequest(const std::string &headers, modem_reply_t &mes
 					while ((pos = data.find(delimiter, prev_pos+1)) != std::string::npos) {
 						token = data.substr(prev_pos, pos-prev_pos);
 						int len = std::stoul(token, nullptr, 16);
+						if(!len) break; //teriminating chunk is marked with zero length
 						pos += delimiter.length();
 						message.response_messageBody += data.substr(pos, len);
 						pos += len;

@@ -585,7 +585,7 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 
 	//check if state changed
 	bool state_changed = false;
-	if(s3state.var.current_feedback_time){
+	//if(s3state.var.current_feedback_time){
 		if(s3state.var.previous_state.type != state.type){
 			state_changed = true;
 		} else {
@@ -595,15 +595,15 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 				}
 			}
 		}
-	}
-
+	//}
+/*
 	if(!s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp){
 		s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp = midnight;
 	}
 	if(!s3state.feedback[s3state.var.current_feedback].header.timestamp){
 		s3state.feedback[s3state.var.current_feedback].header.timestamp = midnight;
 	}
-	
+	*/
 	//check state against schedule to see if relay needs to open or close
 	bool closed = getRelayState();
 	bool watering_needed = isWateringNeeded(state, schedule, config, now, midnight);
@@ -769,6 +769,11 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 		}
 		s3state.var.previous_feedback_time = s3state.var.current_feedback_time;
 		s3state.var.current_feedback_time = midnight;
+		if(schedule.prgm_start_times.size()){
+			if(schedule.prgm_start_times[0] < config.manual_start_time){ // program runs in the morning so the new feedback time needs to be advanced to the next day instead of today
+				s3state.var.current_feedback_time += 86400;
+			}
+		}
 		s3state.feedback[s3state.var.current_feedback].manual_runs.clear();
 		s3state.feedback[s3state.var.current_feedback].zone_runs.clear();
 		s3state.feedback[s3state.var.current_feedback].zone_runs.resize(schedule.zone_duration.size());
@@ -788,6 +793,11 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 		}
 		s3state.var.previous_flow_feedback_time = s3state.var.current_flow_feedback_time;
 		s3state.var.current_flow_feedback_time = midnight;
+		if(schedule.prgm_start_times.size()){
+			if(schedule.prgm_start_times[0] < config.manual_start_time){ // program runs in the morning so the new feedback time needs to be advanced to the next day instead of today
+				s3state.var.current_flow_feedback_time += 86400;
+			}
+		}
 		s3state.flow_feedback[s3state.var.current_flow_feedback].samples.clear();
 		s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp = midnight;
 	}

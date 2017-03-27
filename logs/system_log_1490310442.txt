@@ -1,4 +1,0 @@
-1490310145, Power on modem
-1490310145, connecting to modem
-1490310145, Waiting for Modem to boot
-1490310191, 

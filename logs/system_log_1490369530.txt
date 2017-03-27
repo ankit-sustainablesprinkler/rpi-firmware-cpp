@@ -1,9 +1,0 @@
-1490369343, Power on modem
-1490369343, connecting to modem
-1490369343, Waiting for Modem to boot
-1490369403, [55803908] Modem URC timed out.
-1490369403, 
-1490369403, [55803913] URC {}
-1490369404, modem failed to boot
-1490369414, Waiting for Modem to boot
-1490369417, 

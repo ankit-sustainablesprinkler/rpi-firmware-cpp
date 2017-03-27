@@ -1,0 +1,13 @@
+1490309912, Power on modem
+1490309912, connecting to modem
+1490309912, Waiting for Modem to boot
+1490309972, [82772220] Modem URC timed out.
+1490309972, 
+1490309972, [82772226] URC {}
+1490309972, [82772226] AT+CGPADDR=1
+1490309973, [82773332] Modem reply timed out.
+1490309973, 
+1490309973, [82773338] Data {}
+1490309973, [82773338] Response {}
+1490309974, modem failed to boot
+1490309981, 

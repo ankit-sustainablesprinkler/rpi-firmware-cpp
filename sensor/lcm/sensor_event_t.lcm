@@ -1,0 +1,12 @@
+struct sensor_event_t
+{
+	boolean voltage_state;
+	boolean current_state;
+	int32_t timestamp;
+	float voltage;
+	float current;
+	float transformer_voltage;
+	int8_t zone;
+	int8_t program;
+	int8_t state;
+}

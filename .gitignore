@@ -1,0 +1,7 @@
+bin/
+*.map
+get_log
+logger
+s3-main
+test
+

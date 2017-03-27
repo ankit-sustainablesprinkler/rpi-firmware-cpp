@@ -1,0 +1,4 @@
+1490375646, Power on modem
+1490375646, connecting to modem
+1490375647, W!WHY IS THIS BROKEN B>??? 6              100
+1490375765, 

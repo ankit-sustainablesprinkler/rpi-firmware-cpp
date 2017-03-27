@@ -1,0 +1,7 @@
+struct sensor_t
+{
+	int32_t timestamp;
+	float voltage;
+	float current;
+	int8_t flow;
+}

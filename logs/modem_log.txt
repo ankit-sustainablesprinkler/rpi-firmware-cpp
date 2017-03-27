@@ -1,0 +1,334 @@
+1490280055 ERROR Modem failed to send heartbeat
+1490280055 INFO Soft reseting modem.
+1490280164 ERROR Modem failed to send heartbeat
+1490280164 INFO Soft reseting modem.
+1490280271 INFO Modem sent heartbeat
+1490281227 INFO Modem sent heartbeat
+1490283469 INFO Modem sent heartbeat
+1490284043 INFO Modem sent heartbeat
+1490284162 INFO Modem sent heartbeat
+1490285084 INFO Modem sent heartbeat
+1490286102 INFO Modem sent heartbeat
+1490286859 INFO Modem sent heartbeat
+1490287193 INFO Modem sent heartbeat
+1490287397 INFO Modem sent heartbeat
+1490287540 INFO Modem sent heartbeat
+1490287704 ERROR Modem failed to send heartbeat
+1490287704 INFO Soft reseting modem.
+1490287765 INFO Modem sent heartbeat
+1490287908 INFO Modem sent heartbeat
+1490288071 INFO Modem sent heartbeat
+1490288223 INFO Modem sent heartbeat
+1490288382 INFO Modem sent heartbeat
+1490288524 INFO Modem sent heartbeat
+1490288855 INFO Modem sent heartbeat
+1490288997 INFO Modem sent heartbeat
+1490289184 INFO Modem sent heartbeat
+1490289380 INFO Modem sent heartbeat
+1490289584 INFO Modem sent heartbeat
+1490289904 INFO Modem sent heartbeat
+1490290342 ERROR Modem failed to send heartbeat
+1490290342 INFO Soft reseting modem.
+1490290430 ERROR Modem failed to send heartbeat
+1490290430 INFO Soft reseting modem.
+1490290557 INFO Modem sent heartbeat
+1490290717 INFO Modem sent heartbeat
+1490290967 INFO Modem sent heartbeat
+1490291171 INFO Modem sent heartbeat
+1490291314 INFO Modem sent heartbeat
+1490291604 INFO Modem sent heartbeat
+1490291789 INFO Modem sent heartbeat
+1490291932 INFO Modem sent heartbeat
+1490292132 INFO Modem sent heartbeat
+1490292298 INFO Modem sent heartbeat
+1490292462 INFO Modem sent heartbeat
+1490292605 INFO Modem sent heartbeat
+1490292955 INFO Modem sent heartbeat
+1490293163 INFO Modem sent heartbeat
+1490293415 INFO Modem sent heartbeat
+1490293556 INFO Modem sent heartbeat
+1490293936 INFO Modem sent heartbeat
+1490294294 INFO Modem sent heartbeat
+1490294491 INFO Modem sent heartbeat
+1490294767 ERROR Modem failed to send heartbeat
+1490294767 INFO Soft reseting modem.
+1490294865 INFO Modem sent heartbeat
+1490295568 ERROR Modem failed to send heartbeat
+1490295568 INFO Soft reseting modem.
+1490295634 ERROR Modem failed to send heartbeat
+1490295634 INFO Soft reseting modem.
+1490295708 INFO Modem sent heartbeat
+1490296557 INFO Modem sent heartbeat
+1490296700 INFO Modem sent heartbeat
+1490296866 INFO Modem sent heartbeat
+1490297009 INFO Modem sent heartbeat
+1490297315 INFO Modem sent heartbeat
+1490297498 INFO Modem sent heartbeat
+1490297659 INFO Modem sent heartbeat
+1490297802 INFO Modem sent heartbeat
+1490297946 INFO Modem sent heartbeat
+1490298209 ERROR Modem failed to send heartbeat
+1490298209 INFO Soft reseting modem.
+1490299462 INFO Modem sent heartbeat
+1490299676 ERROR Modem failed to send heartbeat
+1490299676 INFO Soft reseting modem.
+1490304523 ERROR Modem failed to send heartbeat
+1490304523 INFO Soft reseting modem.
+1490304634 INFO Modem sent heartbeat
+1490304836 INFO Modem sent heartbeat
+1490305038 INFO Modem sent heartbeat
+1490305240 INFO Modem sent heartbeat
+1490305442 INFO Modem sent heartbeat
+1490305644 INFO Modem sent heartbeat
+1490305834 ERROR Modem failed to send heartbeat
+1490305834 INFO Soft reseting modem.
+1490305987 INFO Modem sent heartbeat
+1490306188 INFO Modem sent heartbeat
+1490306429 INFO Modem sent heartbeat
+1490306750 ERROR Modem failed to send heartbeat
+1490306750 INFO Soft reseting modem.
+1490306862 INFO Modem sent heartbeat
+1490307102 INFO Modem sent heartbeat
+1490307353 ERROR Modem failed to send heartbeat
+1490307353 INFO Soft reseting modem.
+1490307466 INFO Modem sent heartbeat
+1490307757 ERROR Modem failed to send heartbeat
+1490307757 INFO Soft reseting modem.
+1490307927 INFO Modem sent heartbeat
+1490308118 ERROR Modem failed to send heartbeat
+1490308118 INFO Soft reseting modem.
+1490308264 ERROR Modem failed to send heartbeat
+1490308264 INFO Soft reseting modem.
+1490308393 INFO Modem sent heartbeat
+1490309024 INFO Modem sent heartbeat
+1490310631 INFO Modem sent heartbeat
+1490310818 INFO Modem sent heartbeat
+1490311270 INFO Modem sent heartbeat
+1490311471 INFO Modem sent heartbeat
+1490311658 INFO Modem sent heartbeat
+1490311886 INFO Modem sent heartbeat
+1490312159 ERROR Modem failed to send heartbeat
+1490312159 INFO Soft reseting modem.
+1490312367 ERROR Modem failed to send heartbeat
+1490312367 INFO Soft reseting modem.
+1490312498 INFO Modem sent heartbeat
+1490363288 INFO Modem sent heartbeat
+1490366375 ERROR Modem failed to send heartbeat
+1490366375 INFO Soft reseting modem.
+1490371955 INFO Modem sent heartbeat
+1490375204 INFO Modem sent heartbeat
+1490376867 INFO Modem sent heartbeat
+1490377314 INFO Modem sent heartbeat
+1490385553 INFO Modem sent heartbeat
+1490385786 INFO Modem sent heartbeat
+1490385972 INFO Modem sent heartbeat
+1490386447 INFO Modem sent heartbeat
+1490383100 INFO Modem sent heartbeat
+1490383430 INFO Modem sent heartbeat
+1490383616 INFO Modem sent heartbeat
+1490383804 INFO Modem sent heartbeat
+1490383984 INFO Modem sent heartbeat
+1490384163 INFO Modem sent heartbeat
+1490384349 INFO Modem sent heartbeat
+1490384532 INFO Modem sent heartbeat
+1490384217 INFO Modem sent heartbeat
+1490384677 INFO Modem sent heartbeat
+1490385326 INFO Modem sent heartbeat
+1490385557 INFO Modem sent heartbeat
+1490385835 INFO Modem sent heartbeat
+1490386035 INFO Modem sent heartbeat
+1490387639 INFO Modem sent heartbeat
+1490387986 INFO Modem sent heartbeat
+1490389697 INFO Modem sent heartbeat
+1490390133 INFO Modem sent heartbeat
+1490390637 ERROR Modem failed to send heartbeat
+1490390637 INFO Soft reseting modem.
+1490391185 INFO Modem sent heartbeat
+1490392990 INFO Modem sent heartbeat
+1490393192 INFO Modem sent heartbeat
+1490393470 INFO Modem sent heartbeat
+1490394100 INFO Modem sent heartbeat
+1490394387 INFO Modem sent heartbeat
+1490394865 INFO Modem sent heartbeat
+1490395221 INFO Modem sent heartbeat
+1490397249 ERROR Modem failed to send heartbeat
+1490397249 INFO Soft reseting modem.
+1490397536 INFO Modem sent heartbeat
+1490397754 INFO Modem sent heartbeat
+1490398794 INFO Modem sent heartbeat
+1490399772 INFO Modem sent heartbeat
+1490400993 ERROR Modem failed to send heartbeat
+1490400993 INFO Soft reseting modem.
+1490401968 ERROR Modem failed to send heartbeat
+1490401968 INFO Soft reseting modem.
+1490404709 INFO Modem sent heartbeat
+1490411676 INFO Modem sent heartbeat
+1490413807 INFO Modem sent heartbeat
+1490415381 INFO Modem sent heartbeat
+1490418065 INFO Modem sent heartbeat
+1490419512 INFO Modem sent heartbeat
+1490419789 INFO Modem sent heartbeat
+1490420415 INFO Modem sent heartbeat
+1490425649 INFO Modem sent heartbeat
+1490427822 INFO Modem sent heartbeat
+1490428005 INFO Modem sent heartbeat
+1490431294 INFO Modem sent heartbeat
+1490431747 INFO Modem sent heartbeat
+1490434406 INFO Modem sent heartbeat
+1490436078 INFO Modem sent heartbeat
+1490438494 INFO Modem sent heartbeat
+1490441453 INFO Modem sent heartbeat
+1490442525 INFO Modem sent heartbeat
+1490443806 ERROR Modem failed to send heartbeat
+1490443806 INFO Soft reseting modem.
+1490445235 INFO Modem sent heartbeat
+1490445460 INFO Modem sent heartbeat
+1490446760 INFO Modem sent heartbeat
+1490446979 INFO Modem sent heartbeat
+1490447155 INFO Modem sent heartbeat
+1490447443 INFO Modem sent heartbeat
+1490447633 INFO Modem sent heartbeat
+1490448149 INFO Modem sent heartbeat
+1490448516 INFO Modem sent heartbeat
+1490448909 INFO Modem sent heartbeat
+1490449305 INFO Modem sent heartbeat
+1490450423 ERROR Modem failed to send heartbeat
+1490450423 INFO Soft reseting modem.
+1490451414 ERROR Modem failed to send heartbeat
+1490451414 INFO Soft reseting modem.
+1490451528 INFO Modem sent heartbeat
+1490451855 INFO Modem sent heartbeat
+1490452296 INFO Modem sent heartbeat
+1490453280 INFO Modem sent heartbeat
+1490454471 ERROR Modem failed to send heartbeat
+1490454471 INFO Soft reseting modem.
+1490456375 INFO Modem sent heartbeat
+1490457195 ERROR Modem failed to send heartbeat
+1490457195 INFO Soft reseting modem.
+1490458222 INFO Modem sent heartbeat
+1490459607 INFO Modem sent heartbeat
+1490461262 ERROR Modem failed to send heartbeat
+1490461262 INFO Soft reseting modem.
+1490465828 ERROR Modem failed to send heartbeat
+1490465828 INFO Soft reseting modem.
+1490476527 INFO Modem sent heartbeat
+1490480808 ERROR Modem failed to send heartbeat
+1490480808 INFO Soft reseting modem.
+1490480945 INFO Modem sent heartbeat
+1490481122 INFO Modem sent heartbeat
+1490481599 INFO Modem sent heartbeat
+1490481927 INFO Modem sent heartbeat
+1490482378 INFO Modem sent heartbeat
+1490482609 INFO Modem sent heartbeat
+1490482823 INFO Modem sent heartbeat
+1490483069 INFO Modem sent heartbeat
+1490483715 INFO Modem sent heartbeat
+1490484456 INFO Modem sent heartbeat
+1490484662 INFO Modem sent heartbeat
+1490485164 INFO Modem sent heartbeat
+1490485618 INFO Modem sent heartbeat
+1490486414 INFO Modem sent heartbeat
+1490487825 INFO Modem sent heartbeat
+1490488162 INFO Modem sent heartbeat
+1490488374 INFO Modem sent heartbeat
+1490488811 INFO Modem sent heartbeat
+1490489070 INFO Modem sent heartbeat
+1490489278 INFO Modem sent heartbeat
+1490489734 INFO Modem sent heartbeat
+1490489932 INFO Modem sent heartbeat
+1490490195 INFO Modem sent heartbeat
+1490490504 INFO Modem sent heartbeat
+1490490843 INFO Modem sent heartbeat
+1490491527 INFO Modem sent heartbeat
+1490491905 INFO Modem sent heartbeat
+1490492245 INFO Modem sent heartbeat
+1490492508 INFO Modem sent heartbeat
+1490492855 INFO Modem sent heartbeat
+1490493133 INFO Modem sent heartbeat
+1490493490 INFO Modem sent heartbeat
+1490493880 INFO Modem sent heartbeat
+1490495889 INFO Modem sent heartbeat
+1490496139 INFO Modem sent heartbeat
+1490496466 INFO Modem sent heartbeat
+1490497125 INFO Modem sent heartbeat
+1490497316 INFO Modem sent heartbeat
+1490497495 INFO Modem sent heartbeat
+1490497686 INFO Modem sent heartbeat
+1490497958 INFO Modem sent heartbeat
+1490498146 INFO Modem sent heartbeat
+1490498358 INFO Modem sent heartbeat
+1490498670 INFO Modem sent heartbeat
+1490499018 INFO Modem sent heartbeat
+1490499375 INFO Modem sent heartbeat
+1490499581 INFO Modem sent heartbeat
+1490499775 INFO Modem sent heartbeat
+1490499973 INFO Modem sent heartbeat
+1490500180 INFO Modem sent heartbeat
+1490500359 INFO Modem sent heartbeat
+1490500548 INFO Modem sent heartbeat
+1490500787 INFO Modem sent heartbeat
+1490501006 INFO Modem sent heartbeat
+1490501271 INFO Modem sent heartbeat
+1490502229 INFO Modem sent heartbeat
+1490503481 INFO Modem sent heartbeat
+1490504134 INFO Modem sent heartbeat
+1490504411 INFO Modem sent heartbeat
+1490504624 INFO Modem sent heartbeat
+1490504834 INFO Modem sent heartbeat
+1490505043 INFO Modem sent heartbeat
+1490505246 INFO Modem sent heartbeat
+1490509618 INFO Modem sent heartbeat
+1490519170 INFO Modem sent heartbeat
+1490521046 INFO Modem sent heartbeat
+1490522161 INFO Modem sent heartbeat
+1490522758 INFO Modem sent heartbeat
+1490523410 INFO Modem sent heartbeat
+1490524238 INFO Modem sent heartbeat
+1490527997 INFO Modem sent heartbeat
+1490528192 INFO Modem sent heartbeat
+1490529342 INFO Modem sent heartbeat
+1490531154 INFO Modem sent heartbeat
+1490532357 ERROR Modem failed to send heartbeat
+1490532357 INFO Soft reseting modem.
+1490533413 INFO Modem sent heartbeat
+1490537238 ERROR Modem failed to send heartbeat
+1490537238 INFO Soft reseting modem.
+1490537740 INFO Modem sent heartbeat
+1490551865 ERROR Modem failed to send heartbeat
+1490551865 INFO Soft reseting modem.
+1490609535 INFO Modem sent heartbeat
+1490613716 INFO Modem sent heartbeat
+1490615565 INFO Modem sent heartbeat
+1490617107 ERROR Modem failed to send heartbeat
+1490617107 INFO Soft reseting modem.
+                                                                                     1490642485 INFO Modem sent heartbeat
+1490642667 INFO Modem sent heartbeat
+1490642855 INFO Modem sent heartbeat
+1490643055 INFO Modem sent heartbeat
+1490643236 INFO Modem sent heartbeat
+1490643513 INFO Modem sent heartbeat
+1490643716 INFO Modem sent heartbeat
+1490643906 INFO Modem sent heartbeat
+1490644092 INFO Modem sent heartbeat
+1490644299 INFO Modem sent heartbeat
+1490644476 INFO Modem sent heartbeat
+1490644662 INFO Modem sent heartbeat
+1490644855 INFO Modem sent heartbeat
+1490645043 INFO Modem sent heartbeat
+1490645269 INFO Modem sent heartbeat
+1490645529 INFO Modem sent heartbeat
+1490645713 INFO Modem sent heartbeat
+1490645894 INFO Modem sent heartbeat
+1490646231 INFO Modem sent heartbeat
+1490646440 INFO Modem sent heartbeat
+1490646629 INFO Modem sent heartbeat
+1490646886 INFO Modem sent heartbeat
+1490647124 INFO Modem sent heartbeat
+1490647354 INFO Modem sent heartbeat
+1490647592 INFO Modem sent heartbeat
+1490647924 INFO Modem sent heartbeat
+1490648170 INFO Modem sent heartbeat
+1490648380 INFO Modem sent heartbeat
+1490648561 INFO Modem sent heartbeat
+1490648742 INFO Modem sent heartbeat
+1490648928 INFO Modem sent heartbeat

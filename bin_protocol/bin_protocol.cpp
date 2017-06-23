@@ -169,6 +169,7 @@ bool Heartbeat::fromBinary(const std::vector<uint8_t> &data)
 				this->temperature = data[HEADER_SIZE+6];
 				this->signal = data[HEADER_SIZE+7];
 				this->state = (data[HEADER_SIZE+8] & 0x01) == 0x01 ? "close" : "open";
+				this->extra_content.clear();
 				if(size > 0){
 					this->extra_content.insert(extra_content.end(), data.begin()+HEARTBEAT_SIZE, data.end());
 				} 
@@ -262,6 +263,7 @@ bool Log::fromBinary(const std::vector<uint8_t> &data)
 				int log_count = data[HEADER_SIZE] | (data[HEADER_SIZE + 1] << 8);
 				int offset = HEADER_SIZE + 2;
 				log_point_t log;
+				this->log_points.clear();
 				while(i < log_count)
 				{
 					uint8_t running_byte = data[offset];
@@ -397,6 +399,9 @@ bool Schedule::fromBinary(const std::vector<uint8_t> &data)
 				this->is_shift = (data[HEADER_SIZE+7]&0x80) == 0 ? false : true;
 				int offset = HEADER_SIZE + 8;
 				int i = 0;
+				this->prgm_start_times.clear();
+				this->zone_duration.clear();
+				this->custom_programs.clear();
 				while(i < program_count)
 				{
 					this->prgm_start_times.push_back(data[offset + i*2] | (data[offset + i*2 + 1] << 8));
@@ -525,6 +530,114 @@ bool Config::fromBinary(const std::vector<uint8_t> &data)
 		} else return false;
 	} else return false;
 }
+
+Feedback::Feedback(){
+	this->manual_time=0;
+	this->before_time=0;
+	this->after_time=0;
+}
+
+Feedback::Feedback(Header header, uint16_t manual_time, uint16_t after_time, uint16_t before_time, std::vector<std::vector<feedback_log_point_t>> zone_runs)
+{
+	this->header=header;
+	this->header.type=FEEDBACK;
+	this->manual_time=manual_time;
+	this->after_time=after_time;
+	this->before_time=before_time;
+	this->zone_runs=zone_runs;
+}
+
+std::vector<uint8_t> Feedback::toBinary() const
+{
+	std::vector<uint8_t> data(this->header.toBinary());
+
+	data.push_back(this->manual_time & 0xFF);
+	data.push_back((this->manual_time >> 8) & 0xFF);
+	data.push_back(this->before_time & 0xFF);
+	data.push_back((this->before_time >> 8) & 0xFF);
+	data.push_back(this->after_time & 0xFF);
+	data.push_back((this->after_time >> 8) & 0xFF);
+	data.push_back(this->zone_runs.size() & 0xFF);
+	if(zone_runs.size() > 0){
+		data.push_back(zone_runs[0].size());
+		
+		
+		for(auto program : this->zone_runs){
+			for(int i = 0; i < zone_runs[0].size(); i++){
+				if(i < program.size()){
+					int val;
+					val = program[i].voltage * 5.0f;
+					if(val > 255) val = 255;
+					if(val < 0) val = 0;
+					data.push_back(val);
+					val = program[i].current * 100.0f;
+					if(val > 255) val = 255;
+					if(val < 0) val = 0;
+					data.push_back(val);
+					val = program[i].flow;
+					if(val > 255) val = 255;
+					if(val < 0) val = 0;
+					data.push_back(val);
+					data.push_back(program[i].duration);
+					data.push_back(program[i].run);
+				} else {
+					data.push_back(0);
+					data.push_back(0);
+					data.push_back(0);
+					data.push_back(0);
+					data.push_back(0);
+				}
+			}
+		}
+		
+	} else {
+		data.push_back(0);
+	}
+	
+
+	//this->header.content_length = data.size();
+	putSizeIntoData(data);
+	calculateCRC(data);
+	return data;
+}
+
+bool Feedback::fromBinary(const std::vector<uint8_t> &data){
+	
+	if(isValidData(data))
+	{
+		if(getSizefromBinary(data) == data.size())
+		{
+			if(this->header.fromBinary(data))
+			{
+				this->manual_time=data[HEADER_SIZE] | (data[HEADER_SIZE + 1] << 8);
+				this->before_time=data[HEADER_SIZE+2] | (data[HEADER_SIZE + 3] << 8);
+				this->after_time=data[HEADER_SIZE+4] | (data[HEADER_SIZE + 5] << 8);
+				int prgm_count = data[HEADER_SIZE+6];
+				int zone_count = data[HEADER_SIZE+7];
+				
+				this->zone_runs.resize(prgm_count);
+				if(prgm_count){
+					for(int i = 0; i < prgm_count; i++){
+						zone_runs[i].resize(zone_count);
+					}
+				}
+				int offset = HEADER_SIZE+8;
+				for(int i = 0; i < prgm_count; i++){
+					for(int j = 0; j < zone_count; j++){
+						zone_runs[i][j].voltage = data[offset + (i * zone_count + j)*5]/5.0f;
+						zone_runs[i][j].current = data[offset + (i * zone_count + j)*5 + 1]/100.0f;
+						zone_runs[i][j].flow = data[offset + (i * zone_count + j)*5 + 2];
+						zone_runs[i][j].duration = data[offset + (i * zone_count + j)*5 + 3];
+						zone_runs[i][j].run = (bool) data[offset + (i * zone_count + j)*5 + 4];
+					}
+				}
+				
+				return true;
+			} else return false;
+		} else return false;
+	} else return false;
+}
+
 /*
 class MessageFlow:
 	def __init__(self, header=MessageHeader(), averages=[]):

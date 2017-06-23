@@ -1,4 +1,7 @@
 #include "sensor.h"
+#include <iostream>
+
+#define VOLTAGE_SCALE 0.0017971460864  //=(1+R1/R2)/(Av*2^15*sqrt(2))  R1 = 1M, R2 = 6.04k, Av = 2
 
 
 static  void  meter_init (void);
@@ -21,9 +24,13 @@ void sensorSetup()
 		throw std::runtime_error(std::string("Unable to initialize wiringPi: ") + strerror(errno));
 	}
 	
-	if (wiringPiSPISetupMode(1, 350000, 3) == -1) {
+	if (wiringPiSPISetupMode(1, 100000, 0) == -1) {
 		throw std::runtime_error(std::string("Unable to initialize SPI#1: ") + strerror(errno));
 	}
+	
+	pinMode(PIN_FAULT_CLEAR, OUTPUT);
+	digitalWrite(PIN_FAULT_CLEAR, HIGH);
+	digitalWrite(PIN_FAULT_CLEAR, LOW);
 	
 	meter_init();
 }
@@ -61,18 +68,21 @@ bool  meterGetValues (float  &volt_ac, float &volt_solenoid, float &curr_solenoi
 
 	valid = meter_read(0x48, data);
 	if (valid) {
-		volt_ac = (data & 0x7FFF) * 3.53388E-02f;
-		curr_solenoid = (data >> 15)    * 9.85914E-05f;
+		volt_solenoid = (data & 0x7FFF) * VOLTAGE_SCALE * 2;  
+		std::cout << "ADC Value: " << (data & 0x7FFF) << std::endl;
+		curr_solenoid = (data >> 15) * 13.4869915233978E-05f;
 	} else {
-		volt_ac = 0.0f;
+		//volt_ac = 0.0f;
 		curr_solenoid = 0.0f;
 	}
 
 	valid = meter_read(0x4A, data);
 	if (valid) {
-		volt_solenoid = (data & 0x7FFF) * 3.53388E-02f;
+		//volt_ac = (data & 0x7FFF) * VOLTAGE_SCALE;
+		volt_ac = (data >> 15) * VOLTAGE_SCALE;//TODO Current and voltage channel swapped on board.
 	} else {
 		volt_solenoid = 0.0f;
+		volt_ac = 0.0f;
 	}
 
 #if 0
@@ -179,11 +189,11 @@ static  void  meter_config (void)
 	(void)meter_write(0x07, 0x0000);
 	(void)meter_write(0x08, 0xF695); // Cal V1: 0% = 0xF800, -2.216% = 0xF695
 	(void)meter_write(0x09, 0x003F);
-	(void)meter_write(0x0A, 0xF5D8); // Cal C1: -3.369% = 0xF5D8
+	(void)meter_write(0x0A, 0xF800); // Cal C1: -3.369% = 0xF5D8
 	(void)meter_write(0x0B, 0x003F);
-	(void)meter_write(0x0C, 0xF74B); // Cal V2: -1.105% = 0xF74B
+	(void)meter_write(0x0C, 0xF800); // Cal V2: -1.105% = 0xF74B
 	(void)meter_write(0x0D, 0x003F);
-	(void)meter_write(0x0E, 0xF800);
+	(void)meter_write(0x0E, 0xF6B0); // Cal C2: -2.048% = 0xF6B0
 	(void)meter_write(0x0F, 0x003F);
 	(void)meter_write(0x10, 0x0FFF);
 	(void)meter_write(0x11, 0x0000);
@@ -352,177 +362,25 @@ static  bool  meter_write (uint8_t  address, uint16_t  data, bool  trace)
 }
 
 //================= Flow meter ====================
-static bool flow_cmd (uint8_t  cmd, const  uint8_t  *param, size_t  param_len, uint8_t  *resp, size_t  resp_len)
+
+bool flowGet(float &frequency)
 {
-	std::lock_guard<std::mutex> lock(mutex_spi);
-
-	if (param_len > 1024)
-		return false;
-
-	if (param_len && (param == (uint8_t *)0))
-		return false;
-
-	if (resp_len && (resp == (uint8_t *)0))
-		return false;
-
-	size_t    frame_len = param_len + 6;
-	uint8_t  *frame     = new uint8_t[frame_len];
-
-	if (frame == (uint8_t *)0)
-		return false;
-
-	frame[0] = 0xFA;
-	frame[1] =  (frame_len - 3)       & 0xFF;
-	frame[2] = ((frame_len - 3) >> 8) & 0xFF;
-	frame[3] =   cmd;
-	if (param_len)
-		memcpy(&frame[4], param, param_len);
-
-	uint16_t  crc = CRC16(frame, frame_len - 2, 0);
-
-	frame[frame_len - 2] =  crc       & 0xFF;
-	frame[frame_len - 1] = (crc >> 8) & 0xFF;
-
+	uint8_t rx[4] = {0x02, 0x03, 0x01, 0x00};
 	digitalWrite(11, LOW);
-
-	int result = wiringPiSPIDataRW(1, frame, frame_len);
-	if (result != frame_len) {
-		digitalWrite(11, HIGH);
-
-		delete[] frame;
-		return false;
-	}
-
-	delete[] frame;
-
-	if (resp_len == 0) {
-		digitalWrite(11, HIGH);
-		return true;
-	}
-
-	uint8_t  poll;
-	int      retry = 250;
-
-	do {
-		poll = RespIdle;
-		result = wiringPiSPIDataRW(1, &poll, 1);
-
-		if ((result == 1) && (poll == RespIdle) && (retry < 245))
-			usleep(500);
-
-		retry--;
-	} while ((result == 1) && (poll == RespIdle) && (retry > 0));
-
-	if ((result != 1) || (poll != RespHeader)) {
-		digitalWrite(11, HIGH);
-		if (retry == 0) {
-			printf("SPI1 failed, timeout.\r\n");
-		} else if ((result == 1) && (poll != RespInvalidCmd) && (poll != 0)) {
-			printf("SPI1 failed, protocol error (0x%02X).\r\n", poll);
-		}
-
-		do {
-			poll = RespIdle;
-			result = wiringPiSPIDataRW(1, &poll, 1);
-		} while ((result == 1) && (poll != RespIdle));
-
-		return false;
-	}
-
-	size_t    rx_len = resp_len + 4;
-	uint8_t  *rx     = new uint8_t[rx_len];
-
-	if (rx == (uint8_t *)0) {
-		digitalWrite(11, HIGH);
-		return false;
-	}
-
-	memset(rx, 0xFF, rx_len);
-
-	result = wiringPiSPIDataRW(1, rx, rx_len);
-	if (result != rx_len) {
-		digitalWrite(11, HIGH);
-
-		int err = errno;
-		printf("SPI1 failed, I/O error (#%d, %s).\r\n", err, strerror(err));
-
-		delete[] rx;
-		return false;
-	}
-
+	wiringPiSPIDataRW(1, rx, 4);
 	digitalWrite(11, HIGH);
+	
+	std::cout << (int)rx[1] << ":" << (int)rx[2] << ":" << (int)rx[3] << std::endl;
 
-	size_t len = rx[0] |
-			    (rx[1] << 8);
+	frequency = ((int)rx[1] | (int)rx[2] << 8)/(rx[3]+1.0f);
 
-	if (len != rx_len - 2) {
-		printf("SPI1 failed, size mismatch (%d != expected %d).\r\n", len, rx_len - 2);
-
-		delete[] rx;
-		return false;
-	}
-
-	uint16_t crc_rx = rx[rx_len - 2] |
-					 (rx[rx_len - 1] << 8);
-
-	uint8_t  hdr = 0x1A;
-
-	crc = CRC16(&hdr, 1, 0);
-	crc = CRC16(rx, rx_len - 2, crc);
-
-	if (crc_rx != crc) {
-		printf("SPI1 failed, CRC mismatch (%04X != expected %04X).\r\n", crc_rx, crc);
-
-		delete[] rx;
-		return false;
-	}
-
-	memcpy(resp, &rx[2], resp_len);
-
-	delete[] rx;
 	return true;
 }
-
-bool  flow_get (std::vector<uint16_t>  &samples)
-{
-#define  RATE_QUEUE_SIZE  16
-
-	static struct {
-		uint32_t  timestamp;
-		uint16_t  count;
-		uint16_t  rate[RATE_QUEUE_SIZE];
-	} response;
-
-	bool  valid = flow_cmd(0x40, NULL, 0, (uint8_t *)&response, sizeof(response));
-	if (valid && response.count) {
-		int count = std::min((uint16_t)RATE_QUEUE_SIZE, response.count);
-
-		samples.assign(response.rate, response.rate + count);//This is dangerous,  Iterators should be used instead.
-
-		return true;
-	}
-
-	return false;
-}
-
-bool  flow_getStatus (Status_t  &status)
-{
-	return flow_cmd(Cmd_GetStatus, (uint8_t *)0, 0, (uint8_t *)&status, sizeof(status));
-}
-
-bool  flow_startBootloader(void)
-{
-	Status_t  status;
-
-
-	return flow_cmd(Cmd_StartBootloader, (uint8_t *)0, 0, (uint8_t *)&status, sizeof(status));
-}
-
-
-bool  flow_startMain(void)
-{
-	Status_t  status;
-
-
-	return flow_cmd(Cmd_StartMain, (uint8_t *)0, 0, (uint8_t *)&status, sizeof(status));
+bool flowSetSampleSize(int size){
+	uint8_t rx[4] = {0x81, (size-1)&0xff, 0x01, 0x00};
+	digitalWrite(11, LOW);
+	wiringPiSPIDataRW(1, rx, 4);
+	digitalWrite(11, HIGH);
+	
+	return size == ((int)rx[3])+1;
 }

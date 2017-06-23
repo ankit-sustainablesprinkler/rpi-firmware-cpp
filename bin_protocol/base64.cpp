@@ -70,6 +70,5 @@ base64_err_typedef base64_decode(std::vector<uint8_t> &data, const std::string &
 			data.push_back((char)((_base64_decode_char(base64[i*4 + 2]) << 6) | (_base64_decode_char(base64[i*4+3]))));
 		}
 	}
-	std::cout << "TTTTTTTTTTT " << (error == BASE64_NO_ERR) << std::endl;
 	return error;
 }

@@ -60,7 +60,9 @@ uint32_t getUpTime()
 }
 void setSystemTime(time_t time)
 {
+	std::cout << "Setting date" << std::endl;
 	runCommand("date +%s -s @" + std::to_string(time));
+	runCommand("hwclock -w");
 }
 
 int getHeartbeatFailCount()
@@ -160,7 +162,6 @@ bin_protocol::Heartbeat getHeartbeat(bool isFirst)
 	int temp = (int) getTemperature();
 	//TODO modem stuff.
 	std::string state = getRelayState() ? "close" : "open";
-	std::cout << "W!WHY IS THIS BROKEN B>??? """ << schedule.ID << "              " << config.ID << std::endl;
 	return bin_protocol::Heartbeat(header, up_time, schedule.ID, config.ID, temp, 0, state);
 }
 
@@ -260,6 +261,8 @@ bool handleHBResponse(const std::string &response, int &type)
 				}
 			}
 		}
+	} else {
+		std::cout << "Invalid base 64 string: \"" << response << "\"" << std::endl;
 	}
 	return result;
 }

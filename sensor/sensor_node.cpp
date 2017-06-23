@@ -29,7 +29,7 @@ bool logSensor(const sensor_t &sensor);
 int main(int argc, char **argv)
 {
 	lcm::LCM lcm;
-	MovingAverage<int> flow_average(32);
+	MovingAverage<float> flow_average(4);
 	MovingAverage<float> current_average(6);
 	MovingAverage<float> voltage_average(6);
 	MovingAverage<float> transformer_voltage_average(32);
@@ -40,6 +40,8 @@ int main(int argc, char **argv)
 	time_t voltage_start = 0, current_start = 0;
 
 	sensorSetup();
+	flowSetSampleSize(10);
+	digitalWrite(PIN_FAULT_CLEAR, HIGH);
 
 	do{
 		//Read the sensors
@@ -49,11 +51,9 @@ int main(int argc, char **argv)
 		voltage_average.addValue(solenoid_voltage);
 		transformer_voltage_average.addValue(voltage);
 
-		vector<uint16_t> values;
-		flow_get(values);
-		for(uint16_t &val : values){
-			flow_average.addValue(val*8);
-		}
+		float frequency;
+		flowGet(frequency);
+		flow_average.addValue(frequency);
 
 		//Process the data
 		
@@ -100,6 +100,8 @@ int main(int argc, char **argv)
 		sensor_event.transformer_voltage = transformer_voltage_average.getAverage();
 		sensor_event.voltage = voltage_average.getAverage();
 		sensor_event.current = current_average.getAverage();
+		
+		cout << frequency << ", " << sensor_event.transformer_voltage << ", " << sensor_event.voltage << ", " << sensor_event.current << endl;
 		
 		if(voltage_state && !voltage_state_prev){
 			if(now - voltage_start >= FILTER_DELAY){

@@ -46,7 +46,7 @@ class Modem {
 private:
 	ModemDriver *modem;
 	void  set_error(void);
-	int fail0, fail1, fail2, fail3, fial0;
+	int fail1, fail2, fail3, fail4, fail5;
 
 public:
 	Modem();
@@ -64,7 +64,7 @@ public:
 	bool PowerOn();
 	bool PowerOff();
 	bool Reset();
-	void hardReset();
+	bool hardReset();
 
 	//modem's fail routine
 	bool ohShit(int fail_state);

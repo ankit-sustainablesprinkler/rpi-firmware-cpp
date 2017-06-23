@@ -7,20 +7,20 @@ LDFLAGS=-pthread
 # -L/opt/rootfs-raspbian/usr/lib/arm-linux-gnueabihf -L/opt/rootfs-raspbian/lib/arm-linux-gnueabihf  -L/opt/rootfs-raspbian/usr/local/lib -Xlinker -rpath-link=/opt/rootfs-raspbian/lib/arm-linux-gnueabihf/ -Xlinker -rpath-link=/opt/rootfs-raspbian/usr/lib/arm-linux-gnueabihf/
 BIN_DIR=bin/
 OBJ=$(addprefix $(BIN_DIR),functions.o base64.o bin_protocol.o crc16.o modem.o modem_driver.o serial_driver.o)
-TEST_OBJ=$(addprefix $(BIN_DIR),test.o schedule.o functions.o base64.o bin_protocol.o crc16.o)
 SCHEDULE_OBJ=$(addprefix $(BIN_DIR),main.o schedule.o) $(OBJ)
 MODEM_OBJ=$(addprefix $(BIN_DIR),modem_test.o modem.o modem_driver.o serial_driver.o)
+TEST_OBJ=$(addprefix $(BIN_DIR),test.o schedule.o) $(OBJ)
 
-all: test main logger get_log
-
-test: $(TEST_OBJ)
-	g++ $(CXXFLAGS) $(LDLIBS) -o test $(TEST_OBJ)
+all: main logger get_log
 	
 main: $(SCHEDULE_OBJ)
 	g++ $(CXXFLAGS) $(MODEM_LIBS) $(LDFLAGS) $(LDLIBS) -o s3-main $(SCHEDULE_OBJ)
 	
 modem: $(MODEM_OBJ)
 	g++ $(CXXFLAGS) $(MODEM_LIBS) $(LDFLAGS) $(LDLIBS) -o modem_test $(MODEM_OBJ) -Wl,-Map=output.map
+
+test: $(TEST_OBJ)
+	g++ $(CXXFLAGS) $(MODEM_LIBS) $(LDFLAGS) $(LDLIBS) -o test $(TEST_OBJ)
 
 logger: logger.cpp
 	g++ $(CXXFLAGS) $(INC) -llcm -o logger logger.cpp
@@ -38,8 +38,7 @@ $(BIN_DIR)bin_protocol.o: bin_protocol/bin_protocol.cpp
 	g++ $(CXXFLAGS) $(INC) -c bin_protocol/bin_protocol.cpp -o $(BIN_DIR)bin_protocol.o
 $(BIN_DIR)crc16.o: bin_protocol/crc16.cpp
 	g++ $(CXXFLAGS) $(INC) -c bin_protocol/crc16.cpp -o $(BIN_DIR)crc16.o
-$(BIN_DIR)test.o: testing/test.cpp
-	g++ $(CXXFLAGS) $(INC) -c testing/test.cpp -o $(BIN_DIR)test.o
+
 $(BIN_DIR)schedule.o: schedule.cpp
 	g++ $(CXXFLAGS) $(INC) -c schedule.cpp -o $(BIN_DIR)schedule.o
 	
@@ -55,3 +54,6 @@ $(BIN_DIR)modem_driver.o: modem/modem_driver.cpp
 	
 $(BIN_DIR)serial_driver.o: modem/serial_driver.cpp
 	g++ $(CXXFLAGS) $(INC) -c modem/serial_driver.cpp -o $(BIN_DIR)serial_driver.o
+
+$(BIN_DIR)test.o: testing/test.cpp
+	g++ $(CXXFLAGS) $(INC) -c testing/test.cpp -o $(BIN_DIR)test.o

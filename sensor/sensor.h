@@ -16,6 +16,9 @@
 
 #include "crc16.h"
 
+
+#define PIN_FAULT_CLEAR 7
+
 class SensorState
 {
 public:
@@ -69,11 +72,6 @@ void sensorSetup();
 
 bool meterGetValues(float  &volt_ac, float &volt_solenoid, float &curr_solenoid);
 
-bool flow_get (std::vector<uint16_t>  &rate);
-bool flow_getStatus (Status_t  &status);
-bool flow_startBootloader(void);
-bool flow_startMain(void);
-bool flow_eraseFlash(uint32_t  address, size_t  len);
-bool flow_writeFlash(uint32_t  address, bool last_xfer, const  uint8_t  *data, size_t  len);
-
+bool flowGet (float &frequency);
+bool flowSetSampleSize(int size);
 #endif

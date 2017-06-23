@@ -28,7 +28,7 @@ PROGRAMS[CUSTOM_SOD] = [0,1,2]*/
 
 namespace bin_protocol {
 	
-enum Type {HEADER =0, HEARTBEAT=1,SCHEDULE = 2, CONFIG = 3, FIRMWARE = 4, LOG = 5, FLOW = 6, FLOW_CAL = 7};
+enum Type {HEADER =0, HEARTBEAT=1,SCHEDULE = 2, CONFIG = 3, FIRMWARE = 4, LOG = 5, FLOW = 6, FLOW_CAL = 7, FEEDBACK=8};
 
 class Header
 {
@@ -121,7 +121,7 @@ class Schedule
 public:
 	Schedule();
 	Schedule(Header header, int ID=0, int effective_date=0, int days=0, bool is_shift=false, std::vector<int> prgm_start_times = std::vector<int>(),
-		std::vector<std::vector<int> > zone_duration = std::vector<std::vector<int> >(), std::vector<custom_t> custom_programs = std::vector<custom_t>());
+		std::vector<std::vector<int> > zone_duration = std::vector<std::vector<int>>(), std::vector<custom_t> custom_programs = std::vector<custom_t>());
 	std::vector<uint8_t> toBinary() const;
 	bool fromBinary(const std::vector<uint8_t> &data);
 	Header header;
@@ -151,5 +151,28 @@ public:
 	int station_delay;
 	bool remain_closed;
 };
+struct feedback_log_point_t
+{
+	float voltage;
+	float current;
+	float flow;
+	uint8_t duration;
+	bool run;
+};
+
+class Feedback
+{
+public:
+	Feedback();
+	Feedback(Header header, uint16_t manual_time=0, uint16_t after_time=0, uint16_t before_time=0, std::vector<std::vector<feedback_log_point_t>> zone_runs=std::vector<std::vector<feedback_log_point_t>>());
+	std::vector<uint8_t> toBinary() const;
+	bool fromBinary(const std::vector<uint8_t> &data);
+	Header header;
+	uint16_t before_time;
+	uint16_t manual_time;
+	uint16_t after_time;
+	std::vector<std::vector<feedback_log_point_t>> zone_runs;	
+};
+
 }
 #endif

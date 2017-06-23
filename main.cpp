@@ -19,6 +19,7 @@
 #include "failure_exception.h"
 
 #define SERIAL_PORT "/dev/ttyAMA0" //"/dev/ttyAMA0"
+#define WDT_INTERRUPT_PERIOD 30
 
 using namespace std;
 using namespace bin_protocol;
@@ -28,16 +29,21 @@ static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message);
 void switch_init();
 void fault_reset();
 void modemThread(bool RTC_fitted);
+void WDTThread();
 
 mutex modem_mutex, modem_IO_mutex, modem_update_mutex;
 condition_variable modem_cond;
 time_t last_heartbeat_time = 0;
+time_t current_feedback_time = 0;
+run_state_t previous_state;
+Feedback feedback[2]; // keep two feedback logs so we can continue logging while waiting for upload.
+int current_feedback = 0;
 
 Modem modem;
 
 Schedule new_schedule;
 Config new_Config;
-bool schedule_ready = false, config_ready = false;
+bool schedule_ready = false, config_ready = false, firstBoot = true, feedback_ready = false; // Added firstBoot - Anthony
 
 struct sample_t{
 	float current;
@@ -51,33 +57,78 @@ class Handler
 {
 public:
 	~Handler() {}
+	bool sampling_active;
+	float flow_sum;
+	float voltage_sum;
+	float current_sum;
+	int sample_count;
+	void reset()
+	{
+		flow_sum = 0;
+		voltage_sum = 0;
+		current_sum = 0;
+		sample_count = 0;
+	}
+	
+	sample_t getAverage(){
+		sample_t sample;
+		if(sample_count){
+			sample.flow = flow_sum / sample_count;
+			sample.voltage = voltage_sum / sample_count;
+			sample.current = current_sum / sample_count;
+		}
+		return sample;
+	}
 
 	void handleMessage(const lcm::ReceiveBuffer* rbuf,	const std::string& chan, const sensor_t* msg)
 	{
 		cout << "current:  " << msg->current << "  voltage:  " << msg->voltage << "  flow:  " << msg->flow << endl;
-		sample_t sample;
+		
+		if(sampling_active){
+			current_sample.flow = msg->flow;
+			current_sample.voltage = msg->voltage;
+			current_sample.current = msg->current;
+			flow_sum+= msg->flow;
+			voltage_sum+= msg->voltage;
+			current_sum += msg->current;
+			sample_count++;
+		}
+		
+	/*	sample_t sample;
 		sample.current = msg->current;
 		sample.voltage = msg->voltage;
 		sample.flow = msg->flow;
 		sample_queue.push(sample);
 		while(sample_queue.size() > 1024){
 			sample_queue.pop();
-		}
+		}*/
 	}
 	queue<sample_t> sample_queue;
+	sample_t current_sample;
 };
+
+Handler handlerObject;
 
 
 int main(int argc, char **argv)
 {
 	//try to lock the pid file
-	cout << "Trying to start" << endl;
+	cout << "What the!!!!!!!!!!" << endl;
 	int pid_file = open("/tmp/s3-schedule.pid", O_CREAT | O_RDWR, 666);
 	int rc = flock(pid_file, LOCK_EX | LOCK_NB); //Linux kernel will allways remove this lock if the process exits for some unknown reason.
 	if(rc && EWOULDBLOCK == errno) {
 		// another instance is running
+		cout << "Another instance is currently running. Stop it first before restarting." << endl;
 	} else {
 		// this is the first instance
+		wiringPiSetup();
+		switch_init();
+		pinMode(PIN_WDT_RESET, OUTPUT);
+		//pinMode(28, OUTPUT);
+		//digitalWrite(28, HIGH);
+		digitalWrite(PIN_WDT_RESET, HIGH);
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		digitalWrite(PIN_WDT_RESET, LOW);
 		
 		cout << "Starting" << endl;
 		//Initial power on routine
@@ -86,10 +137,7 @@ int main(int argc, char **argv)
 		if(!lcm.good())
 			return 1;
 
-		Handler handlerObject;
 		lcm.subscribe("SENSOR", &Handler::handleMessage, &handlerObject);
-		wiringPiSetup();
-		switch_init();
 
 		int modem_fail_count = 0;
 		modem.init();
@@ -123,28 +171,33 @@ int main(int argc, char **argv)
 		}*/
 		
 
-		bool RTC_fitted = false;
+		bool RTC_fitted = true;
 		bool triedReset = false;
 		/*
 			//routine for updating time from RTC
 			RTC_fitted = update_from_RTC();
 		*/
-
+		thread wdt_thread(WDTThread);
 		thread modem_thread(modemThread, RTC_fitted);
 
 		//load config and schedule
 		Schedule schedule;
 		Config config;
 		bool has_schedule = getSchedule(schedule);
+		cout<< "programs: " << schedule.zone_duration.size() << endl;
 		bool has_config = getConfig(config);
 		time_t heartbeat_period = HEARTBEAT_MIN_PERIOD;//config.heartbeat_period;
 		if(heartbeat_period < HEARTBEAT_MIN_PERIOD) heartbeat_period = HEARTBEAT_MIN_PERIOD;
 		
 		//try and send first heartbeat
 		while(true){
-			Heartbeat heartbeat = getHeartbeat(true);
 			modem_reply_t message; 
-			base64_encode(heartbeat.toBinary(), message.request_messageBody);
+			if(!feedback_ready){
+				Heartbeat heartbeat = getHeartbeat(true);
+				base64_encode(heartbeat.toBinary(), message.request_messageBody);
+			} else {
+				
+			}
 			Modem::ErrType error = Modem::NONE;
 			try{
 				error = modemPut(modem, message);
@@ -227,6 +280,10 @@ int main(int argc, char **argv)
 				modem_IO_mutex.unlock();
 			}
 			modem_update_mutex.unlock();
+			//cout << "Start times" << endl;
+			//for(auto time : schedule.prgm_start_times){
+			//	cout << "Time: " << time << endl;
+			//}
 			
 			runSchedule(schedule, config);
 			this_thread::sleep_for(chrono::seconds(1));
@@ -237,9 +294,19 @@ int main(int argc, char **argv)
 
 bool runSchedule(const Schedule &schedule, const Config &config)
 {
-	time_t now = time(nullptr);
+	time_t now = time(nullptr),midnight;
+	midnight = schedule_getMidnight(schedule, config, now);
 	bool closed = getRelayState();
-	if(isWateringNeeded(schedule, config, now))
+	run_state_t state;
+	
+	static int before_time = 0;
+	static int after_time = 0;
+	static int manual_time = 0;
+	
+	
+	getRunState(state, schedule, config, now, midnight);
+	
+	if(isWateringNeeded(state, schedule, config, now, midnight))
 	{
 		if(!closed){
 			cout << "close" << endl;
@@ -251,6 +318,69 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 			openRelay();
 		}
 	}
+	
+	if(current_feedback_time != midnight) //roll feedback to next day
+	{
+		if(current_feedback_time){
+			current_feedback = !current_feedback; // alternate feedback logs
+			feedback_ready = true;
+		}
+		current_feedback_time = midnight;
+		feedback[current_feedback].zone_runs.resize(schedule.zone_duration.size());
+		for(int i = 0; i < schedule.zone_duration.size(); i++){
+			feedback[current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
+		}
+	}
+	
+	bool state_changed = false;
+	if(current_feedback_time){
+		if(previous_state.type != state.type){
+			state_changed = true;
+		} else {
+			if(state.type == ZONE){
+				if(state.zone != previous_state.zone || state.program != previous_state.program){
+					state_changed = true;
+				}
+			}
+		}
+	}
+	
+	
+	sample_t sample = handlerObject.current_sample;
+	
+	/*switch(previous_state.type){
+		case BEFORE:
+			if(sample.voltage > 14.0){
+				before_time++;
+			}
+			break;
+		
+	}*/
+	
+	
+	if(state_changed){
+		switch(state.type){
+			case BEFORE:
+			case AFTER:
+			case MANUAL:
+			
+				break;
+			case ZONE:
+				handlerObject.sampling_active = false;
+				sample_t sample = handlerObject.getAverage();
+				if(state.program < feedback[current_feedback].zone_runs.size()){
+					if(state.zone < feedback[current_feedback].zone_runs[state.program].size()){
+						feedback[current_feedback].zone_runs[state.program][state.zone].voltage=sample.voltage;
+						feedback[current_feedback].zone_runs[state.program][state.zone].current=sample.current;
+						feedback[current_feedback].zone_runs[state.program][state.zone].flow=sample.flow;
+					}
+				}
+				break;
+		}
+			//new_sample = handlerObject.getAverage();
+		memcpy(&previous_state, &state, sizeof(state));
+	}
+	
 	return true;
 }
 
@@ -265,7 +395,7 @@ bool runRemote()
 static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message)
 {
 	string requestLine =
-		string("PUT ") + "http://" + SERVER_HOST + "/ HTTP/1.1\r\n";
+		string("PUT ") + "http://" SERVER_HOST SERVER_PATH "/ HTTP/1.1\r\n";
 
 	string headers =
 		requestLine + string("Host: ") + SERVER_HOST + "\r\n" +
@@ -279,19 +409,35 @@ static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message)
 	Modem::ErrType error = Modem::UNKNOWN;
 	//Modem::ErrType error = modem.HttpRequest(message, SERVER_HOST, SERVER_PORT, requestLine, headers, message.request_messageBody);
 	modem.PowerOn();
-	//this_thread::sleep_for(chrono::seconds(1));
-//	modem.init();
+	this_thread::sleep_for(chrono::seconds(1));
+	//modem.init(); // Should this be removed? - Anthony
 	modem.Open(SERIAL_PORT, 115200);
-	modem.waitForReady();
+	
+	if(firstBoot == true){
+		modem.waitForReady(); // Modem should be ready... Anthony
+		firstBoot = false;
+	}
+	message.statusCode = 0;
 	if(modem.sendRequest(headers, message)){
-		error = message.statusCode == 200 ? Modem::NONE : Modem::UNKNOWN;
+		if(message.statusCode > 0) error = Modem::NONE;
+		else error = Modem::UNKNOWN;
+		/*switch(message.statusCode){
+			case 200:
+			case 302:
+				error = Modem::NONE;
+				break;
+			default:
+				error = Modem::UNKNOWN;
+		}*/
+		//error = message.statusCode == 200 ? Modem::NONE : Modem::UNKNOWN;
 	} else {
 		cout << "NEED to seppuku" << endl;
 	}
-	modem.PowerOff();
+	//modem.PowerOff(); // We want to idle now between heartbeats - Anthony
 	
 	return error;
 }
+
 
 void modemThread(bool RTC_fitted)
 {
@@ -304,9 +450,34 @@ void modemThread(bool RTC_fitted)
 		bool triedReset = false;
 		
 		while(modem_fail_count <= 3){
+			
+			
 			Heartbeat heartbeat = getHeartbeat(true);
+			
+			Feedback feedback(heartbeat.header);
+	
+			feedback.before_time = 560;
+			feedback.after_time =782;
+			feedback.manual_time = 265;
+			Schedule schedule;
+			getSchedule(schedule);
+			feedback.zone_runs.resize(schedule.zone_duration.size());
+			for(int i = 0; i < schedule.zone_duration.size(); i++){
+				feedback.zone_runs[i].resize(schedule.zone_duration[i].size());
+				for(int j = 0; j < schedule.zone_duration[i].size(); j++){
+					feedback.zone_runs[i][j].voltage = i*j;
+					feedback.zone_runs[i][j].current = (i+j)*0.1f;
+					feedback.zone_runs[i][j].flow = i+j+20;
+					feedback.zone_runs[i][j].duration = (1+i+j)*5;
+					feedback.zone_runs[i][j].run = (i==1 || j == 1);
+					
+				}
+			}
+			
+			
 			modem_reply_t message; 
-			base64_encode(heartbeat.toBinary(), message.request_messageBody);
+			base64_encode(feedback.toBinary(), message.request_messageBody);
+			cout << "REQUEST: " << message.request_messageBody << endl;
 			Modem::ErrType error = Modem::NONE;
 			try{
 				error = modemPut(modem, message);
@@ -374,10 +545,21 @@ void modemThread(bool RTC_fitted)
 					modem_IO_mutex.unlock();
 				}
 				logModem(to_string(time(nullptr)) + " INFO Soft reseting modem.");
-				modem.Reset();
+				//modem.Reset(); // This function does not do anything. read comment under modem.cpp - Anthony
 				this_thread::sleep_for(chrono::seconds(30)); // wait before trying again;
 			}
 		}
+	}
+}
+
+void WDTThread()
+{
+	while(true){
+		//pulse WDT reset pin
+		digitalWrite(PIN_WDT_RESET, HIGH);
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		digitalWrite(PIN_WDT_RESET, LOW);
+		this_thread::sleep_for(chrono::seconds(10));
 	}
 }
 

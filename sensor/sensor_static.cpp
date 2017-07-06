@@ -1,13 +1,10 @@
-#include "sensor_global.h"
+#include "sensor_static.h"
 
 #include <iostream>
 #include <fstream>
 #include "sensor.h"
 #include <unistd.h>
-#include "sensor_t.hpp"
-#include "sensor_event_t.hpp"
 #include <vector>
-#include "moving_average.h"
 
 
 
@@ -19,34 +16,27 @@
 #define VOLTAGE_THRESHOLD 10.0
 #define FLOW_THRESHOLD 1.0
 #define HYSTERESIS 0.05
-namespace Sensor{
+namespace sensor{
 
-static MovingAverage<float> flow_average(4);
-static MovingAverage<float> current_average(6);
-static MovingAverage<float> voltage_average(6);
-static MovingAverage<float> transformer_voltage_average(32);
-static sensor_t sensor;
-static sensor_event_t sensor_event;
 
-static void init()
+void sensorInit()
 {
 	sensorSetup();
 	flowSetSampleSize(10);
 	digitalWrite(PIN_FAULT_CLEAR, HIGH);
 }
 
-static void sensorRead()
+void sensorRead()
 {
-	
-	float voltage, solenoid_voltage, solenoid_current;
+	float voltage, solenoid_voltage, solenoid_current, flow;
 	meterGetValues(voltage, solenoid_voltage, solenoid_current);
 	current_average.addValue(solenoid_current);
 	voltage_average.addValue(solenoid_voltage);
-	transformer_voltage_average.addValue(voltage);
-
-	float frequency;
-	flowGet(frequency);
-	flow_average.addValue(frequency);
+	transformer_voltage_average.addValue(voltage);	
+	flowGet(flow);
+	flow_average.addValue(flow);
+	
+	//voltage = voltage * voltage_count++ + new
 	
 	time_t now = time(nullptr);
 		
@@ -54,18 +44,23 @@ static void sensorRead()
 		last_log = now;
 		float flow = flow_average.getAverage();
 		if(flow > FLOW_THRESHOLD || solenoid_voltage > VOLTAGE_THRESHOLD || solenoid_current > CURRENT_THRESHOLD){
-			sensor.voltage = solenoid_voltage;
-			sensor.current = solenoid_current;
-			sensor.flow = flow;
-			cout << "SENSOR " << std::dec << solenoid_voltage << "," << std::dec << solenoid_current << "," << std::dec << flow << endl;
-			lcm.publish("SENSOR", &sensor);
-			while(!logSensor(sensor));
+		//	sensor.voltage = solenoid_voltage;
+		//	sensor.current = solenoid_current;
+		//	sensor.flow = flow;
+		//	cout << "SENSOR " << std::dec << solenoid_voltage << "," << std::dec << solenoid_current << "," << std::dec << flow << endl;
+		//	lcm.publish("SENSOR", &sensor);
+		//	while(!logSensor(sensor));
+
+
 		}
 	}
 	
 	if(voltage_state){
 		if(solenoid_voltage < VOLTAGE_THRESHOLD*(1-HYSTERESIS)){
 			voltage_state = false;
+			if(now > voltage_start){
+				volt_on_time += now - voltage_start;
+			}
 		}
 	} else {
 		if(solenoid_voltage > VOLTAGE_THRESHOLD*(1+HYSTERESIS)){
@@ -77,13 +72,33 @@ static void sensorRead()
 	if(current_state){
 		if(solenoid_current < CURRENT_THRESHOLD*(1-HYSTERESIS)){
 			current_state = false;
+			if(now > current_start){
+				curr_on_time += now - current_start;
+			}
 		}
 	} else {
-		if(solenoid_current > CURRENT_THRESHOLD*(1+HYSTERESIS)){
+		if(solenoid_current > CURRENT_THRESHOLD*(1+HYSTERESIS)){ 
 			current_state = true;
 			if(!current_state_prev) current_start = now;
 		}
 	}
+}
+
+void resetCurrent()
+{
+	current_average.reset();
+	curr_on_time = 0;
+}
+
+void resetVoltage()
+{
+	voltage_average.reset();
+	volt_on_time = 0;
+}
+
+void resetFlow()
+{
+	flow_average.reset();
 }
 	
 	

@@ -10,11 +10,12 @@ OBJ=$(addprefix $(BIN_DIR),functions.o base64.o bin_protocol.o crc16.o modem.o m
 SCHEDULE_OBJ=$(addprefix $(BIN_DIR),main.o schedule.o) $(OBJ)
 MODEM_OBJ=$(addprefix $(BIN_DIR),modem_test.o modem.o modem_driver.o serial_driver.o)
 TEST_OBJ=$(addprefix $(BIN_DIR),test.o schedule.o) $(OBJ)
+SENSOR_OBJ=$(addprefix $(BIN_DIR), sensor_static.o sensor.o moving_average.o)
 
 all: main logger get_log
 	
-main: $(SCHEDULE_OBJ)
-	g++ $(CXXFLAGS) $(MODEM_LIBS) $(LDFLAGS) $(LDLIBS) -o s3-main $(SCHEDULE_OBJ)
+main: $(SCHEDULE_OBJ) $(SENSOR_OBJ)
+	g++ $(CXXFLAGS) $(MODEM_LIBS) $(LDFLAGS) $(LDLIBS) $(INC) -o s3-main $(SCHEDULE_OBJ) $(SENSOR_OBJ)
 	
 modem: $(MODEM_OBJ)
 	g++ $(CXXFLAGS) $(MODEM_LIBS) $(LDFLAGS) $(LDLIBS) -o modem_test $(MODEM_OBJ) -Wl,-Map=output.map
@@ -38,6 +39,13 @@ $(BIN_DIR)bin_protocol.o: bin_protocol/bin_protocol.cpp
 	g++ $(CXXFLAGS) $(INC) -c bin_protocol/bin_protocol.cpp -o $(BIN_DIR)bin_protocol.o
 $(BIN_DIR)crc16.o: bin_protocol/crc16.cpp
 	g++ $(CXXFLAGS) $(INC) -c bin_protocol/crc16.cpp -o $(BIN_DIR)crc16.o
+
+$(BIN_DIR)sensor_static.o: sensor/sensor_static.cpp
+	g++ $(CXXFLAGS) $(INC) -c sensor/sensor_static.cpp -o $(BIN_DIR)sensor_static.o
+$(BIN_DIR)sensor.o: sensor/sensor.cpp
+	g++ $(CXXFLAGS) $(INC) -c sensor/sensor.cpp -o $(BIN_DIR)sensor.o
+$(BIN_DIR)moving_average.o: sensor/moving_average.cpp
+	g++ $(CXXFLAGS) $(INC) -c sensor/moving_average.cpp -o $(BIN_DIR)moving_average.o
 
 $(BIN_DIR)schedule.o: schedule.cpp
 	g++ $(CXXFLAGS) $(INC) -c schedule.cpp -o $(BIN_DIR)schedule.o

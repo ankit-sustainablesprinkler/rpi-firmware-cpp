@@ -17,6 +17,7 @@
 #include "schedule.h"
 #include "modem.h"
 #include "failure_exception.h"
+#include "sensor_static.h"
 
 #define SERIAL_PORT "/dev/ttyAMA0" //"/dev/ttyAMA0"
 #define WDT_INTERRUPT_PERIOD 30
@@ -82,7 +83,7 @@ public:
 
 	void handleMessage(const lcm::ReceiveBuffer* rbuf,	const std::string& chan, const sensor_t* msg)
 	{
-		cout << "current:  " << msg->current << "  voltage:  " << msg->voltage << "  flow:  " << msg->flow << endl;
+		//cout << "current:  " << msg->current << "  voltage:  " << msg->voltage << "  flow:  " << msg->flow << endl;
 		
 		if(sampling_active){
 			current_sample.flow = msg->flow;
@@ -93,15 +94,6 @@ public:
 			current_sum += msg->current;
 			sample_count++;
 		}
-		
-	/*	sample_t sample;
-		sample.current = msg->current;
-		sample.voltage = msg->voltage;
-		sample.flow = msg->flow;
-		sample_queue.push(sample);
-		while(sample_queue.size() > 1024){
-			sample_queue.pop();
-		}*/
 	}
 	queue<sample_t> sample_queue;
 	sample_t current_sample;
@@ -113,7 +105,6 @@ Handler handlerObject;
 int main(int argc, char **argv)
 {
 	//try to lock the pid file
-	cout << "What the!!!!!!!!!!" << endl;
 	int pid_file = open("/tmp/s3-schedule.pid", O_CREAT | O_RDWR, 666);
 	int rc = flock(pid_file, LOCK_EX | LOCK_NB); //Linux kernel will allways remove this lock if the process exits for some unknown reason.
 	if(rc && EWOULDBLOCK == errno) {
@@ -129,6 +120,7 @@ int main(int argc, char **argv)
 		digitalWrite(PIN_WDT_RESET, HIGH);
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		digitalWrite(PIN_WDT_RESET, LOW);
+		sensor::sensorInit();
 		
 		cout << "Starting" << endl;
 		//Initial power on routine
@@ -147,29 +139,6 @@ int main(int argc, char **argv)
 		cout << "Power on modem" << endl;
 		cout << "connecting to modem" << endl;
 		modem.Open(SERIAL_PORT, 115200);
-		/*
-		cout << "Waiting for Modem to boot" << endl;
-		while(!modem.waitForReady(120)){
-			cout << "modem failed to boot" << endl;
-			modem.PowerOff();
-			this_thread::sleep_for(chrono::seconds(10));
-			modem.PowerOn();
-			cout << "Waiting for Modem to boot" << endl;
-			modem.Open(SERIAL_PORT, 115200);
-		}
-		//this_thread::sleep_for(chrono::seconds(5));
-		cout << "modem ready" << endl;
-		
-		modem_info_t info;
-		if(modem.getInfo(info)){
-			cout << "Phone: " << info.phone << endl;
-			cout << "RSSI: " << info.rssi << endl;
-			cout << "IMEI: " << info.imei << endl;
-			cout << "Manufacturer: " << info.manufacturer << endl;
-			cout << "Version: " << info.softwareVersion << endl;
-			cout << "Model: " << info.model << endl;
-		}*/
-		
 
 		bool RTC_fitted = true;
 		bool triedReset = false;
@@ -284,7 +253,7 @@ int main(int argc, char **argv)
 			//for(auto time : schedule.prgm_start_times){
 			//	cout << "Time: " << time << endl;
 			//}
-			
+			sensor::sensorRead();
 			runSchedule(schedule, config);
 			this_thread::sleep_for(chrono::seconds(1));
 		}
@@ -296,42 +265,16 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 {
 	time_t now = time(nullptr),midnight;
 	midnight = schedule_getMidnight(schedule, config, now);
-	bool closed = getRelayState();
 	run_state_t state;
 	
 	static int before_time = 0;
 	static int after_time = 0;
 	static int manual_time = 0;
 	
-	
+	//get current state
 	getRunState(state, schedule, config, now, midnight);
-	
-	if(isWateringNeeded(state, schedule, config, now, midnight))
-	{
-		if(!closed){
-			cout << "close" << endl;
-			closeRelay();
-		}
-	} else {
-		if(closed){
-			cout << "open" << endl;
-			openRelay();
-		}
-	}
-	
-	if(current_feedback_time != midnight) //roll feedback to next day
-	{
-		if(current_feedback_time){
-			current_feedback = !current_feedback; // alternate feedback logs
-			feedback_ready = true;
-		}
-		current_feedback_time = midnight;
-		feedback[current_feedback].zone_runs.resize(schedule.zone_duration.size());
-		for(int i = 0; i < schedule.zone_duration.size(); i++){
-			feedback[current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
-		}
-	}
-	
+
+	//check if state changed
 	bool state_changed = false;
 	if(current_feedback_time){
 		if(previous_state.type != state.type){
@@ -345,39 +288,68 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 		}
 	}
 	
+	//check state against schedule to see if relay needs to open or close
 	
-	sample_t sample = handlerObject.current_sample;
-	
-	/*switch(previous_state.type){
+	bool closed = getRelayState();
+	if(isWateringNeeded(state, schedule, config, now, midnight))
+	{
+		if(!closed){
+			cout << "close" << endl;
+			closeRelay();
+		}
+	} else {
+		if(closed){
+			cout << "open" << endl;
+			openRelay();
+		}
+	}
+
+	if(current_feedback_time != midnight) //roll feedback to next day
+	{
+		if(current_feedback_time){
+			current_feedback = !current_feedback; // alternate feedback logs
+			feedback_ready = true;
+		}
+		current_feedback_time = midnight;
+		feedback[current_feedback].zone_runs.resize(schedule.zone_duration.size());
+		for(int i = 0; i < schedule.zone_duration.size(); i++){
+			feedback[current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
+		}
+	}
+
+	//contiuous events
+	switch(state.type){
 		case BEFORE:
-			if(sample.voltage > 14.0){
+			if(sensor::voltage_state){
 				before_time++;
 			}
 			break;
 		
-	}*/
-	
-	
+	}
+
+	//transition events
 	if(state_changed){
 		switch(state.type){
 			case BEFORE:
 			case AFTER:
 			case MANUAL:
-			
+
 				break;
 			case ZONE:
 				handlerObject.sampling_active = false;
-				sample_t sample = handlerObject.getAverage();
 				if(state.program < feedback[current_feedback].zone_runs.size()){
 					if(state.zone < feedback[current_feedback].zone_runs[state.program].size()){
-						feedback[current_feedback].zone_runs[state.program][state.zone].voltage=sample.voltage;
-						feedback[current_feedback].zone_runs[state.program][state.zone].current=sample.current;
-						feedback[current_feedback].zone_runs[state.program][state.zone].flow=sample.flow;
+						feedback[current_feedback].zone_runs[state.program][state.zone].voltage=sensor::voltage_average.getAverage();
+						feedback[current_feedback].zone_runs[state.program][state.zone].current=sensor::current_average.getAverage();
+						feedback[current_feedback].zone_runs[state.program][state.zone].flow=sensor::flow_average.getAverage();
 					}
 				}
 				break;
 		}
 			//new_sample = handlerObject.getAverage();
+		sensor::resetVoltage();
+		sensor::resetCurrent();
+		sensor::resetFlow();
 		memcpy(&previous_state, &state, sizeof(state));
 	}
 	

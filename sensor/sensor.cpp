@@ -47,10 +47,10 @@ void sensorRun(SensorState *state)
 		usleep(500000);
 
 #if 0
-		std::cout << "AC " << volt_ac << " V, Solenoid " << volt_solenoid << " V, " << curr_solenoid * 1000.0f << " mA, Flow " << states->flowRate << " Hz" << std::endl;
+		//std::cout << "AC " << volt_ac << " V, Solenoid " << volt_solenoid << " V, " << curr_solenoid * 1000.0f << " mA, Flow " << states->flowRate << " Hz" << std::endl;
 #endif
 #if 1
-		std::cout << volt_solenoid << " V, " << curr_solenoid * 1000.0f << " mA" << std::endl;
+		//std::cout << volt_solenoid << " V, " << curr_solenoid * 1000.0f << " mA" << std::endl;
 #endif
 	}
 }
@@ -69,7 +69,7 @@ bool  meterGetValues (float  &volt_ac, float &volt_solenoid, float &curr_solenoi
 	valid = meter_read(0x48, data);
 	if (valid) {
 		volt_solenoid = (data & 0x7FFF) * VOLTAGE_SCALE * 2;  
-		std::cout << "ADC Value: " << (data & 0x7FFF) << std::endl;
+		//std::cout << "ADC Value: " << (data & 0x7FFF) << std::endl;
 		curr_solenoid = (data >> 15) * 13.4869915233978E-05f;
 	} else {
 		//volt_ac = 0.0f;
@@ -370,7 +370,7 @@ bool flowGet(float &frequency)
 	wiringPiSPIDataRW(1, rx, 4);
 	digitalWrite(11, HIGH);
 	
-	std::cout << (int)rx[1] << ":" << (int)rx[2] << ":" << (int)rx[3] << std::endl;
+	//std::cout << (int)rx[1] << ":" << (int)rx[2] << ":" << (int)rx[3] << std::endl;
 
 	frequency = ((int)rx[1] | (int)rx[2] << 8)/(rx[3]+1.0f);
 

@@ -8,6 +8,7 @@ template <class T> class MovingAverage
 public:
 	MovingAverage(int size);
 	bool addValue(const T &val);
+	void reset();
 	T getAverage();
 private:
 	std::vector<T> _values;

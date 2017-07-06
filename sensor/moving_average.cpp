@@ -23,6 +23,14 @@ bool MovingAverage<T>::addValue(const T &value)
 	else _sum -= *_current_pos;
 }
 
+template<class T>
+void MovingAverage<T>::reset()
+{
+	_size = 0;
+	_sum = T(0);
+	std::fill(_values.begin(), _values.end(), T(0));
+}
+
 
 template<class T>
 T MovingAverage<T>::getAverage()

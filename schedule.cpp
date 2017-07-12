@@ -28,6 +28,7 @@ time_t schedule_getMidnight(const bin_protocol::Schedule &schedule, const bin_pr
 						  // cycle can run.  this condition is nullified if Program A start time is after midnight.
 		//std::cout << "Subtracting 1 day" << std::endl;
 	}
+	return midnight;
 }
 
 bool isWateringNeeded(const run_state_t &state, const bin_protocol::Schedule &schedule, const bin_protocol::Config &config, time_t &now, time_t midnight)

@@ -12,11 +12,21 @@
 #define EVENT_LOG FILE_PREFIX "event_log.txt"
 #define SENSOR_LOG FILE_PREFIX "sensor_log.txt"
 #define FILTER_DELAY 4
-#define CURRENT_THRESHOLD 0.01
+#define CURRENT_THRESHOLD 0.08
 #define VOLTAGE_THRESHOLD 10.0
 #define FLOW_THRESHOLD 1.0
 #define HYSTERESIS 0.05
 namespace sensor{
+	
+bool voltage_state = false, voltage_state_prev = false, current_state = false, current_state_prev = false;
+time_t last_log = time(nullptr);
+time_t voltage_start = 0, current_start = 0;
+time_t volt_on_time = 0, curr_on_time = 0, flow_on_time = 0;
+
+MovingAverage<float> flow_average(60);
+MovingAverage<float> current_average(60);
+MovingAverage<float> voltage_average(60);
+MovingAverage<float> transformer_voltage_average(120);
 
 
 void sensorInit()
@@ -35,6 +45,12 @@ void sensorRead()
 	transformer_voltage_average.addValue(voltage);	
 	flowGet(flow);
 	flow_average.addValue(flow);
+	//std::cout << "Voltage: " << solenoid_voltage << ", Current: " << solenoid_current << ", Flow: " << flow << std::endl;
+	//std::cout << "Voltage avg: " << voltage_average.getAverage() << ", Current avg: " << current_average.getAverage()
+	//<< ", Flow avg: " << flow_average.getAverage() << std::endl;
+	
+	
+	//std::cout << solenoid_voltage << " V, " << solenoid_current << " A" << std::endl;
 	
 	//voltage = voltage * voltage_count++ + new
 	
@@ -59,12 +75,15 @@ void sensorRead()
 		if(solenoid_voltage < VOLTAGE_THRESHOLD*(1-HYSTERESIS)){
 			voltage_state = false;
 			if(now > voltage_start){
+				std::cout << "Voltage off" << std::endl;
 				volt_on_time += now - voltage_start;
+				std::cout << "Voltage dur: " << volt_on_time << ", Avg: " << voltage_average.getAverage() << std::endl;
 			}
 		}
 	} else {
 		if(solenoid_voltage > VOLTAGE_THRESHOLD*(1+HYSTERESIS)){
 			voltage_state = true;
+			std::cout << "Voltage on" << std::endl;
 			if(!voltage_state_prev) voltage_start = now;
 		}
 	}
@@ -73,15 +92,23 @@ void sensorRead()
 		if(solenoid_current < CURRENT_THRESHOLD*(1-HYSTERESIS)){
 			current_state = false;
 			if(now > current_start){
+				std::cout << "Current off" << std::endl;
 				curr_on_time += now - current_start;
+				std::cout << "Current dur: " << curr_on_time << ", Avg: " << current_average.getAverage() << std::endl;
 			}
 		}
 	} else {
 		if(solenoid_current > CURRENT_THRESHOLD*(1+HYSTERESIS)){ 
 			current_state = true;
-			if(!current_state_prev) current_start = now;
+			if(!current_state_prev) 
+			{
+				std::cout << "Current on" << std::endl;
+				current_start = now;
+			}
 		}
 	}
+	
+	//std::cout << "voltage time: " << volt_on_time << " current time" << curr_on_time << std::endl;
 }
 
 void resetCurrent()

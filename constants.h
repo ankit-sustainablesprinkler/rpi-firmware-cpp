@@ -8,6 +8,8 @@
 #define PIN_RESET 7
 #define PIN_SYS_FAULT 4
 
+#define DEBUG_MODEM
+
 //#define USE_DEBUG_SERVER
 
 #ifndef USE_DEBUG_SERVER

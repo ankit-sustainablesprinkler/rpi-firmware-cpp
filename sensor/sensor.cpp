@@ -50,7 +50,7 @@ void sensorRun(SensorState *state)
 		//std::cout << "AC " << volt_ac << " V, Solenoid " << volt_solenoid << " V, " << curr_solenoid * 1000.0f << " mA, Flow " << states->flowRate << " Hz" << std::endl;
 #endif
 #if 1
-		//std::cout << volt_solenoid << " V, " << curr_solenoid * 1000.0f << " mA" << std::endl;
+		std::cout << volt_solenoid << " V, " << curr_solenoid * 1000.0f << " mA" << std::endl;
 #endif
 	}
 }
@@ -93,7 +93,6 @@ bool  meterGetValues (float  &volt_ac, float &volt_solenoid, float &curr_solenoi
 		freq_ac = 0.0f;
 	}
 #endif
-
 	return valid;
 }
 

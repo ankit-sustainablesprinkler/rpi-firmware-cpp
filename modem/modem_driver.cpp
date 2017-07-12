@@ -13,10 +13,14 @@ using namespace boost;
 
 #define STARTS_WITH(a, b) ( strncmp((a), (b), strlen(b)) == 0)
 
+//#if defined DEBUG_MODEM
 #define TRACE_EN
 #define TRACE_INFO(...)    do { auto _ts = time().time_of_day().total_milliseconds(); TRACE("[", _ts, "] ", __VA_ARGS__); } while (0)
 #define TRACE_DEBUG(...)   do { auto _ts = time().time_of_day().total_milliseconds(); TRACE("[", _ts, "] ", __VA_ARGS__); } while (0)
-
+//#else
+//#define TRACE_INFO(...)
+//#define TRACE_DEBUG(...)
+//#endif
 
 
 static inline posix_time::ptime time (void)
@@ -269,9 +273,12 @@ void ModemDriver::flush(void)
 
 	if (buffer.size() > 0) {
 		if ((buffer.size() != 1) || (buffer[0] != '+')) {
+			
+#if defined DEBUG_MODEM
 			cout << "Flush: \"";
 			std::copy(buffer.begin(), buffer.end(), std::ostream_iterator<char>(std::cout));
 			cout << "\"";
+#endif
 		}
 	}
 
@@ -283,11 +290,16 @@ void ModemDriver::flush(void)
 			if (len > 0) {
 				if ((len != 2) || (chunk[0] != 'A') || (chunk[1] != 'T')) {
 					if (!printed)
+						
+#if defined DEBUG_MODEM
 						cout << "Flush: \"";
+#endif
 
 					printed = true;
 
+#if defined DEBUG_MODEM
 					cout << chunk;
+#endif
 				}
 			}
 		} catch (const TimeoutException &e) {
@@ -295,8 +307,10 @@ void ModemDriver::flush(void)
 		}
 	} while (len > 0);
 
+#if defined DEBUG_MODEM
 	if (printed)
 		cout << "\"";
+#endif
 }
 
 
@@ -408,14 +422,20 @@ bool  ModemDriver::process_data (posix_time::time_duration timeout)
 	if (!valid) {
 		if (len > 0) {
 			TRACE_INFO("Modem reply timed out.\r\nPending Data {", reply, "}\r\n");
+#if defined DEBUG_MODEM
 			std::cout << "Pending Binary {";
+#endif
 			for (int ix = 0; ix < len; ix++) {
 				if ((ix % 16) == 0)
+#if defined DEBUG_MODEM
 					std::cout << std::endl;
+#endif
 
 				printf("%02X ", reply[ix]);
 			}
+#if defined DEBUG_MODEM
 			std::cout << "}" << std::endl;
+#endif
 		} else if (buffer.size() > 0) {
 			TRACE_INFO("Modem reply timed out.\r\nI/O Buffer with ", buffer.size(), " bytes.\r\n");
 		} else {

@@ -39,12 +39,22 @@ time_t current_feedback_time = 0;
 run_state_t previous_state;
 Feedback feedback[2]; // keep two feedback logs so we can continue logging while waiting for upload.
 int current_feedback = 0;
+string message_string;
+
+
+namespace sensor{
+extern time_t volt_on_time, curr_on_time, flow_on_time;
+extern MovingAverage<float> flow_average;
+extern MovingAverage<float> current_average;
+extern MovingAverage<float> voltage_average;
+extern MovingAverage<float> transformer_voltage_average;
+}
 
 Modem modem;
 
 Schedule new_schedule;
 Config new_Config;
-bool schedule_ready = false, config_ready = false, firstBoot = true, feedback_ready = false; // Added firstBoot - Anthony
+bool schedule_ready = false, config_ready = false, firstBoot = true, feedback_ready = false, heartbeat_sent = false; // Added firstBoot - Anthony
 
 struct sample_t{
 	float current;
@@ -136,8 +146,10 @@ int main(int argc, char **argv)
 		modem.PowerOff();
 		this_thread::sleep_for(chrono::seconds(10));
 		modem.PowerOn();
+#ifdef DEBUG_MODEM
 		cout << "Power on modem" << endl;
 		cout << "connecting to modem" << endl;
+#endif
 		modem.Open(SERIAL_PORT, 115200);
 
 		bool RTC_fitted = true;
@@ -159,34 +171,37 @@ int main(int argc, char **argv)
 		if(heartbeat_period < HEARTBEAT_MIN_PERIOD) heartbeat_period = HEARTBEAT_MIN_PERIOD;
 		
 		//try and send first heartbeat
-		while(true){
+		while(false){
 			modem_reply_t message; 
-			if(!feedback_ready){
-				Heartbeat heartbeat = getHeartbeat(true);
-				base64_encode(heartbeat.toBinary(), message.request_messageBody);
-			} else {
-				
-			}
+			Heartbeat heartbeat = getHeartbeat(true);
+			base64_encode(heartbeat.toBinary(), message.request_messageBody);
 			Modem::ErrType error = Modem::NONE;
 			try{
 				error = modemPut(modem, message);
 			} catch (FailureException e){
+#ifdef DEBUG_MODEM
 				cout << e.what();
+#endif
 			} catch (...) { }
 			if(error == Modem::NONE){
 				modem_fail_count = 0;
 				setHeartbeatFailCount(0);
+#ifdef DEBUG_MODEM
 				cout << "Tying to handle response" << endl;
+#endif
 				int type;
 				handleHBResponse(message.response_messageBody, type);
 				last_heartbeat_time = time(nullptr);
 				
 				logModem(to_string(time(nullptr)) + " INFO Modem sent heartbeat");
+				cout << "Sent heartbeat" << endl;
 				break;
 			} else {
 				logModem(to_string(time(nullptr)) + " ERROR Modem failed to send heartbeat");
 				modem_fail_count++;
+#ifdef DEBUG_MODEM
 				cout << "##### Failed to connect." << endl << "Incrementing error count to: " << modem_fail_count << endl;
+#endif
 				if(modem_fail_count > 3){
 					logModem(to_string(time(nullptr)) + " ERROR Modem fail exceeded threshold.");
 					if(incrementHeartbeatFail() > 3 && RTC_fitted){
@@ -201,7 +216,9 @@ int main(int argc, char **argv)
 								modem.Open(SERIAL_PORT, 115200);
 						} else {
 							triedReset = false;
+#ifdef DEBUG_MODEM
 							cout << "Commiting seppuku" << endl;
+#endif
 							logModem(to_string(time(nullptr)) + " WARN Commiting seppuku.");
 							//modem_fail_count = 0;
 							rebootSystem();
@@ -222,11 +239,9 @@ int main(int argc, char **argv)
 		cout << "============ Entering main loop ================" << endl;
 		while(true)
 		{
+			//cout << "Ready: " << feedback_ready << endl;
 			//lcm.handleTimeout(50);
-			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
-			if(time(nullptr) - last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
-				modem_cond.notify_all();
-			}
+			
 			
 			modem_update_mutex.lock();
 			if(schedule_ready){
@@ -255,6 +270,24 @@ int main(int argc, char **argv)
 			//}
 			sensor::sensorRead();
 			runSchedule(schedule, config);
+			
+			//cout << "feedback: " << feedback[current_feedback].manual_time << endl;
+			//cout << "other feedback: " << feedback[!current_feedback].manual_time << endl;
+			
+			//check if heart beat needs to be sent
+			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
+			if(time(nullptr) - last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
+				if(feedback_ready){
+					auto header = getHeader(bin_protocol::FEEDBACK);
+					feedback[!current_feedback].header = header;
+					base64_encode(feedback[!current_feedback].toBinary(), message_string);
+				} else {
+					Heartbeat heartbeat = getHeartbeat(false);
+					base64_encode(heartbeat.toBinary(), message_string);
+				}
+				modem_cond.notify_all();
+			}
+			
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 	}
@@ -265,7 +298,9 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 {
 	time_t now = time(nullptr),midnight;
 	midnight = schedule_getMidnight(schedule, config, now);
+	//cout << "Midnight: " << midnight << endl;
 	run_state_t state;
+	state.type = NONE;
 	
 	static int before_time = 0;
 	static int after_time = 0;
@@ -306,7 +341,9 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 
 	if(current_feedback_time != midnight) //roll feedback to next day
 	{
+		cout << "New feedback log" << endl;
 		if(current_feedback_time){
+			cout << "Feedback ready" << endl;
 			current_feedback = !current_feedback; // alternate feedback logs
 			feedback_ready = true;
 		}
@@ -316,43 +353,47 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 			feedback[current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
 		}
 	}
-
-	//contiuous events
-	switch(state.type){
-		case BEFORE:
-			if(sensor::voltage_state){
-				before_time++;
-			}
-			break;
-		
-	}
-
+	//feedback[current_feedback].manual_time = 10;
 	//transition events
 	if(state_changed){
-		switch(state.type){
+		cout << "State changed from " << previous_state.type << " to " << state.type << endl;
+		cout << (int)MANUAL << endl;
+		switch(previous_state.type){
 			case BEFORE:
+				feedback[current_feedback].before_time = sensor::volt_on_time;
+				break;
 			case AFTER:
+				feedback[current_feedback].after_time = sensor::volt_on_time;
+				break;
 			case MANUAL:
-
+				cout << "Manual state: " << sensor::curr_on_time << endl;
+				feedback[current_feedback].manual_time = sensor::curr_on_time;
 				break;
 			case ZONE:
+				cout << "Zone run" << endl;
 				handlerObject.sampling_active = false;
-				if(state.program < feedback[current_feedback].zone_runs.size()){
-					if(state.zone < feedback[current_feedback].zone_runs[state.program].size()){
-						feedback[current_feedback].zone_runs[state.program][state.zone].voltage=sensor::voltage_average.getAverage();
-						feedback[current_feedback].zone_runs[state.program][state.zone].current=sensor::current_average.getAverage();
-						feedback[current_feedback].zone_runs[state.program][state.zone].flow=sensor::flow_average.getAverage();
+				if(previous_state.program < feedback[current_feedback].zone_runs.size()){
+					if(previous_state.zone < feedback[current_feedback].zone_runs[previous_state.program].size()){
+						cout << "Zone: " << (int)previous_state.zone << ", Pgm: " << (int)previous_state.program << ", Voltage: " <<
+						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].voltage=sensor::voltage_average.getAverage())
+						<< ", Current: " << 
+						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].current=sensor::current_average.getAverage())
+						<< ", Flow: " << 
+						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].flow=sensor::flow_average.getAverage()) << endl;
 					}
 				}
 				break;
 		}
 			//new_sample = handlerObject.getAverage();
+		cout << "before reset " << sensor::curr_on_time << endl;
 		sensor::resetVoltage();
 		sensor::resetCurrent();
 		sensor::resetFlow();
 		memcpy(&previous_state, &state, sizeof(state));
 	}
-	
+//	cout << "before time: " << feedback[current_feedback].before_time << endl;
+	//cout << "after time: " << feedback[current_feedback].after_time << endl;
+//	cout << "manual time: " << feedback[current_feedback].manual_time << endl;
 	return true;
 }
 
@@ -403,7 +444,9 @@ static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message)
 		}*/
 		//error = message.statusCode == 200 ? Modem::NONE : Modem::UNKNOWN;
 	} else {
+#if defined DEBUG_MODEM
 		cout << "NEED to seppuku" << endl;
+#endif
 	}
 	//modem.PowerOff(); // We want to idle now between heartbeats - Anthony
 	
@@ -424,7 +467,7 @@ void modemThread(bool RTC_fitted)
 		while(modem_fail_count <= 3){
 			
 			
-			Heartbeat heartbeat = getHeartbeat(true);
+			/*Heartbeat heartbeat = getHeartbeat(true);
 			
 			Feedback feedback(heartbeat.header);
 	
@@ -442,27 +485,33 @@ void modemThread(bool RTC_fitted)
 					feedback.zone_runs[i][j].flow = i+j+20;
 					feedback.zone_runs[i][j].duration = (1+i+j)*5;
 					feedback.zone_runs[i][j].run = (i==1 || j == 1);
-					
 				}
 			}
-			
+			*/
 			
 			modem_reply_t message; 
-			base64_encode(feedback.toBinary(), message.request_messageBody);
+			message.request_messageBody = message_string;
+#if defined DEBUG_MODEM
 			cout << "REQUEST: " << message.request_messageBody << endl;
+#endif
 			Modem::ErrType error = Modem::NONE;
 			try{
 				error = modemPut(modem, message);
 			} catch (FailureException e){
+#if defined DEBUG_MODEM
 				cout << e.what();
+#endif
 			} catch (...) { }
 			if(error == Modem::NONE){
+				feedback_ready = false;
 				modem_fail_count = 0;
 				int type;
 				modem_IO_mutex.lock();
 				try{
 					setHeartbeatFailCount(0);
+#if defined DEBUG_MODEM
 					cout << "Tying to handle response" << endl;
+#endif
 					handleHBResponse(message.response_messageBody, type);
 					last_heartbeat_time = time(nullptr);
 				} catch(...){}
@@ -487,7 +536,9 @@ void modemThread(bool RTC_fitted)
 			} else {
 				logModem(to_string(time(nullptr)) + " ERROR Modem failed to send heartbeat");
 				modem_fail_count++;
+#if defined DEBUG_MODEM
 				cout << "##### Failed to connect." << endl << "Incrementing error count to: " << modem_fail_count << endl;
+#endif
 				if(modem_fail_count > 3){
 					logModem(to_string(time(nullptr)) + " ERROR Modem fail exceeded threshold.");
 					modem_IO_mutex.lock();
@@ -504,7 +555,9 @@ void modemThread(bool RTC_fitted)
 							} else {
 								triedReset = false;
 								if(RTC_fitted){
+#if defined DEBUG_MODEM
 									cout << "Commiting seppuku" << endl;
+#endif
 									logModem(to_string(time(nullptr)) + " WARN Commiting seppuku");
 									//modem_fail_count = 0;
 									rebootSystem();

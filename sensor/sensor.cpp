@@ -365,12 +365,14 @@ static  bool  meter_write (uint8_t  address, uint16_t  data, bool  trace)
 bool flowGet(float &frequency)
 {
 	uint8_t rx[4] = {0x02, 0x03, 0x01, 0x00};
+	digitalWrite(14, LOW);
+	usleep(50);
 	digitalWrite(11, LOW);
 	wiringPiSPIDataRW(1, rx, 4);
 	digitalWrite(11, HIGH);
 	
 	//std::cout << (int)rx[1] << ":" << (int)rx[2] << ":" << (int)rx[3] << std::endl;
-
+	//std::cout << ((int)rx[1] | (int)rx[2] << 8) << std::endl;
 	frequency = ((int)rx[1] | (int)rx[2] << 8)/(rx[3]+1.0f);
 
 	return true;

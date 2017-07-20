@@ -50,10 +50,13 @@ base64_err_typedef base64_decode(std::vector<uint8_t> &data, const std::string &
 {
 	std::cout << base64 << std::endl;
 	base64_err_typedef error = BASE64_NO_ERR;
-	if(base64.size()%4 || !base64.size()){
+	if(base64.size()%4){
 		std::cout << "ERROR " << base64.size() << std::endl;
 		error = INVALID_BASE64;
-	} else{
+	} else if(!base64.size()){
+		data.clear();
+		std::cout << "String is empty" << std::endl;
+	} else {
 		data.reserve(base64.size()/4*3);
 		int i = 0;
 		for(; i < base64.size()/4 - 1; i++){

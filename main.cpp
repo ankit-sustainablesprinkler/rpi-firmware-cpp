@@ -379,7 +379,9 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 						<< ", Current: " << 
 						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].current=sensor::current_average.getAverage())
 						<< ", Flow: " << 
-						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].flow=sensor::flow_average.getAverage()) << endl;
+						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].flow=sensor::flow_average.getAverage())
+						<< ", Run time: " << 
+						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].duration=sensor::curr_on_time) << endl;
 					}
 				}
 				break;

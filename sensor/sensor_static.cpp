@@ -23,9 +23,9 @@ time_t last_log = time(nullptr);
 time_t voltage_start = 0, current_start = 0;
 time_t volt_on_time = 0, curr_on_time = 0, flow_on_time = 0;
 
-MovingAverage<float> flow_average(60);
-MovingAverage<float> current_average(60);
-MovingAverage<float> voltage_average(60);
+MovingAverage<float> flow_average(50);
+MovingAverage<float> current_average(50);
+MovingAverage<float> voltage_average(50);
 MovingAverage<float> transformer_voltage_average(120);
 
 

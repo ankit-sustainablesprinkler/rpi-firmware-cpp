@@ -11,7 +11,7 @@
 #define DEBUG_MODEM
 
 //#define USE_DEBUG_SERVER
-//#define USE_OFFICE_SERVER
+#define USE_OFFICE_SERVER
 
 #ifdef USE_DEBUG_SERVER
 #define SERVER_HOST "pwer.sillyip.com"//"s-3.us" 
@@ -20,7 +20,7 @@
 #elif defined USE_OFFICE_SERVER
 #define SERVER_HOST "73.139.249.14"
 #define SERVER_PORT 80
-#define SERVER_PATH "/api/bin"
+#define SERVER_PATH "/~s3staging/3s/api/bin"
 #else
 #define SERVER_HOST "s-3.us" 
 #define SERVER_PORT 80

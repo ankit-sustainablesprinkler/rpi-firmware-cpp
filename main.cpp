@@ -39,7 +39,7 @@ time_t current_feedback_time = 0;
 run_state_t previous_state;
 Feedback feedback[2]; // keep two feedback logs so we can continue logging while waiting for upload.
 int current_feedback = 0;
-string message_string;
+std::vector<uint8_t> message_string;
 
 
 namespace sensor{
@@ -280,10 +280,12 @@ int main(int argc, char **argv)
 				if(feedback_ready){
 					auto header = getHeader(bin_protocol::FEEDBACK);
 					feedback[!current_feedback].header = header;
-					base64_encode(feedback[!current_feedback].toBinary(), message_string);
+					message_string = feedback[!current_feedback].toBinary();
+					//base64_encode(feedback[!current_feedback].toBinary(), message_string);
 				} else {
 					Heartbeat heartbeat = getHeartbeat(false);
-					base64_encode(heartbeat.toBinary(), message_string);
+					message_string = heartbeat.toBinary();
+					//base64_encode(heartbeat.toBinary(), message_string);
 				}
 				modem_cond.notify_all();
 			}
@@ -491,8 +493,8 @@ void modemThread(bool RTC_fitted)
 			}
 			*/
 			
-			modem_reply_t message; 
-			message.request_messageBody = message_string;
+			modem_reply_t message;
+			base64_encode(message_string, message.request_messageBody);
 #if defined DEBUG_MODEM
 			cout << "REQUEST: " << message.request_messageBody << endl;
 #endif
@@ -505,7 +507,7 @@ void modemThread(bool RTC_fitted)
 #endif
 			} catch (...) { }
 			if(error == Modem::NONE){
-				feedback_ready = false;
+				if(bin_protocol::getTypefromBinary(message_string) == bin_protocol::FEEDBACK) feedback_ready = false;
 				modem_fail_count = 0;
 				int type;
 				modem_IO_mutex.lock();

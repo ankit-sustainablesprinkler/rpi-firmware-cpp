@@ -5,3 +5,5 @@ logger
 s3-main
 test
 logs/
+etc/
+

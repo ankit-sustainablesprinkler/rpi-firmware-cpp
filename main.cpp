@@ -18,6 +18,9 @@
 #include "modem.h"
 #include "failure_exception.h"
 #include "sensor_static.h"
+#include "state.h"
+#include "bin_protocol.h"
+#define PLANCKS_CONSTANT 6.626E-34
 
 #define SERIAL_PORT "/dev/ttyAMA0" //"/dev/ttyAMA0"
 #define WDT_INTERRUPT_PERIOD 30
@@ -25,7 +28,6 @@
 using namespace std;
 using namespace bin_protocol;
 bool runSchedule(const Schedule &schedule, const Config &config);
-bool runRemote();
 static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message);
 void switch_init();
 void fault_reset();
@@ -34,12 +36,13 @@ void WDTThread();
 
 mutex modem_mutex, modem_IO_mutex, modem_update_mutex;
 condition_variable modem_cond;
-time_t last_heartbeat_time = 0;
-time_t current_feedback_time = 0;
-run_state_t previous_state;
-Feedback feedback[2]; // keep two feedback logs so we can continue logging while waiting for upload.
-int current_feedback = 0;
+/*time_t s3state.var.last_heartbeat_time = 0;
+time_t s3state.var.current_feedback_time = 0;
+run_state_t s3state.var.previous_state;
+Feedback s3state.feedback[2]; // keep two s3state.feedback logs so we can continue logging while waiting for upload.
+int s3state.var.current_feedback = 0;*/
 std::vector<uint8_t> message_string;
+s3state_t s3state;
 
 
 namespace sensor{
@@ -140,6 +143,8 @@ int main(int argc, char **argv)
 			return 1;
 
 		lcm.subscribe("SENSOR", &Handler::handleMessage, &handlerObject);
+		
+		state_getState(s3state);
 
 		int modem_fail_count = 0;
 		modem.init();
@@ -191,7 +196,7 @@ int main(int argc, char **argv)
 #endif
 				int type;
 				handleHBResponse(message.response_messageBody, type);
-				last_heartbeat_time = time(nullptr);
+				s3state.var.last_heartbeat_time = time(nullptr);
 				
 				logModem(to_string(time(nullptr)) + " INFO Modem sent heartbeat");
 				cout << "Sent heartbeat" << endl;
@@ -271,17 +276,17 @@ int main(int argc, char **argv)
 			sensor::sensorRead();
 			runSchedule(schedule, config);
 			
-			//cout << "feedback: " << feedback[current_feedback].manual_time << endl;
-			//cout << "other feedback: " << feedback[!current_feedback].manual_time << endl;
+			//cout << "s3state.feedback: " << s3state.feedback[s3state.var.current_feedback].manual_time << endl;
+			//cout << "other s3state.feedback: " << s3state.feedback[!s3state.var.current_feedback].manual_time << endl;
 			
 			//check if heart beat needs to be sent
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
-			if(time(nullptr) - last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
+			if(time(nullptr) - s3state.var.last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
 				if(feedback_ready){
 					auto header = getHeader(bin_protocol::FEEDBACK);
-					feedback[!current_feedback].header = header;
-					message_string = feedback[!current_feedback].toBinary();
-					//base64_encode(feedback[!current_feedback].toBinary(), message_string);
+					s3state.feedback[!s3state.var.current_feedback].header = header;
+					message_string = s3state.feedback[!s3state.var.current_feedback].toBinary();
+					//base64_encode(s3state.feedback[!s3state.var.current_feedback].toBinary(), message_string);
 				} else {
 					Heartbeat heartbeat = getHeartbeat(false);
 					message_string = heartbeat.toBinary();
@@ -289,7 +294,8 @@ int main(int argc, char **argv)
 				}
 				modem_cond.notify_all();
 			}
-			
+
+			state_saveState(s3state);
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 	}
@@ -313,12 +319,12 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 
 	//check if state changed
 	bool state_changed = false;
-	if(current_feedback_time){
-		if(previous_state.type != state.type){
+	if(s3state.var.current_feedback_time){
+		if(s3state.var.previous_state.type != state.type){
 			state_changed = true;
 		} else {
 			if(state.type == ZONE){
-				if(state.zone != previous_state.zone || state.program != previous_state.program){
+				if(state.zone != s3state.var.previous_state.zone || state.program != s3state.var.previous_state.program){
 					state_changed = true;
 				}
 			}
@@ -341,49 +347,49 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 		}
 	}
 
-	if(current_feedback_time != midnight) //roll feedback to next day
+	if(s3state.var.current_feedback_time != midnight) //roll s3state.feedback to next day
 	{
-		cout << "New feedback log" << endl;
-		if(current_feedback_time){
+		cout << "New s3state.feedback log" << endl;
+		if(s3state.var.current_feedback_time){
 			cout << "Feedback ready" << endl;
-			current_feedback = !current_feedback; // alternate feedback logs
+			s3state.var.current_feedback = !s3state.var.current_feedback; // alternate s3state.feedback logs
 			feedback_ready = true;
 		}
-		current_feedback_time = midnight;
-		feedback[current_feedback].zone_runs.resize(schedule.zone_duration.size());
+		s3state.var.current_feedback_time = midnight;
+		s3state.feedback[s3state.var.current_feedback].zone_runs.resize(schedule.zone_duration.size());
 		for(int i = 0; i < schedule.zone_duration.size(); i++){
-			feedback[current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
+			s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
 		}
 	}
-	//feedback[current_feedback].manual_time = 10;
+	//s3state.feedback[s3state.var.current_feedback].manual_time = 10;
 	//transition events
 	if(state_changed){
-		cout << "State changed from " << previous_state.type << " to " << state.type << endl;
+		cout << "State changed from " << s3state.var.previous_state.type << " to " << state.type << endl;
 		cout << (int)MANUAL << endl;
-		switch(previous_state.type){
+		switch(s3state.var.previous_state.type){
 			case BEFORE:
-				feedback[current_feedback].before_time = sensor::volt_on_time;
+				s3state.feedback[s3state.var.current_feedback].before_time = sensor::volt_on_time;
 				break;
 			case AFTER:
-				feedback[current_feedback].after_time = sensor::volt_on_time;
+				s3state.feedback[s3state.var.current_feedback].after_time = sensor::volt_on_time;
 				break;
 			case MANUAL:
 				cout << "Manual state: " << sensor::curr_on_time << endl;
-				feedback[current_feedback].manual_time = sensor::curr_on_time;
+				s3state.feedback[s3state.var.current_feedback].manual_time = sensor::curr_on_time;
 				break;
 			case ZONE:
 				cout << "Zone run" << endl;
 				handlerObject.sampling_active = false;
-				if(previous_state.program < feedback[current_feedback].zone_runs.size()){
-					if(previous_state.zone < feedback[current_feedback].zone_runs[previous_state.program].size()){
-						cout << "Zone: " << (int)previous_state.zone << ", Pgm: " << (int)previous_state.program << ", Voltage: " <<
-						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].voltage=sensor::voltage_average.getAverage())
+				if(s3state.var.previous_state.program < s3state.feedback[s3state.var.current_feedback].zone_runs.size()){
+					if(s3state.var.previous_state.zone < s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program].size()){
+						cout << "Zone: " << (int)s3state.var.previous_state.zone << ", Pgm: " << (int)s3state.var.previous_state.program << ", Voltage: " <<
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].voltage=sensor::voltage_average.getAverage())
 						<< ", Current: " << 
-						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].current=sensor::current_average.getAverage())
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].current=sensor::current_average.getAverage())
 						<< ", Flow: " << 
-						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].flow=sensor::flow_average.getAverage())
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].flow=sensor::flow_average.getAverage())
 						<< ", Run time: " << 
-						(feedback[current_feedback].zone_runs[previous_state.program][previous_state.zone].duration=sensor::curr_on_time) << endl;
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].duration=sensor::curr_on_time) << endl;
 					}
 				}
 				break;
@@ -393,19 +399,11 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 		sensor::resetVoltage();
 		sensor::resetCurrent();
 		sensor::resetFlow();
-		memcpy(&previous_state, &state, sizeof(state));
+		memcpy(&s3state.var.previous_state, &state, sizeof(state));
 	}
-//	cout << "before time: " << feedback[current_feedback].before_time << endl;
-	//cout << "after time: " << feedback[current_feedback].after_time << endl;
-//	cout << "manual time: " << feedback[current_feedback].manual_time << endl;
-	return true;
-}
-
-
-bool runRemote()
-{
-	static time_t last_heartbeat_time = 0;
-	static bool first_heartbeat_sent = false;
+//	cout << "before time: " << s3state.feedback[s3state.var.current_feedback].before_time << endl;
+	//cout << "after time: " << s3state.feedback[s3state.var.current_feedback].after_time << endl;
+//	cout << "manual time: " << s3state.feedback[s3state.var.current_feedback].manual_time << endl;
 	return true;
 }
 
@@ -473,22 +471,22 @@ void modemThread(bool RTC_fitted)
 			
 			/*Heartbeat heartbeat = getHeartbeat(true);
 			
-			Feedback feedback(heartbeat.header);
+			Feedback s3state.feedback(heartbeat.header);
 	
-			feedback.before_time = 560;
-			feedback.after_time =782;
-			feedback.manual_time = 265;
+			s3state.feedback.before_time = 560;
+			s3state.feedback.after_time =782;
+			s3state.feedback.manual_time = 265;
 			Schedule schedule;
 			getSchedule(schedule);
-			feedback.zone_runs.resize(schedule.zone_duration.size());
+			s3state.feedback.zone_runs.resize(schedule.zone_duration.size());
 			for(int i = 0; i < schedule.zone_duration.size(); i++){
-				feedback.zone_runs[i].resize(schedule.zone_duration[i].size());
+				s3state.feedback.zone_runs[i].resize(schedule.zone_duration[i].size());
 				for(int j = 0; j < schedule.zone_duration[i].size(); j++){
-					feedback.zone_runs[i][j].voltage = i*j;
-					feedback.zone_runs[i][j].current = (i+j)*0.1f;
-					feedback.zone_runs[i][j].flow = i+j+20;
-					feedback.zone_runs[i][j].duration = (1+i+j)*5;
-					feedback.zone_runs[i][j].run = (i==1 || j == 1);
+					s3state.feedback.zone_runs[i][j].voltage = i*j;
+					s3state.feedback.zone_runs[i][j].current = (i+j)*0.1f;
+					s3state.feedback.zone_runs[i][j].flow = i+j+20;
+					s3state.feedback.zone_runs[i][j].duration = (1+i+j)*5;
+					s3state.feedback.zone_runs[i][j].run = (i==1 || j == 1);
 				}
 			}
 			*/
@@ -517,7 +515,7 @@ void modemThread(bool RTC_fitted)
 					cout << "Tying to handle response" << endl;
 #endif
 					handleHBResponse(message.response_messageBody, type);
-					last_heartbeat_time = time(nullptr);
+					s3state.var.last_heartbeat_time = time(nullptr);
 				} catch(...){}
 				modem_IO_mutex.unlock();
 				

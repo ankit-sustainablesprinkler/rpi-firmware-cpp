@@ -284,6 +284,7 @@ int main(int argc, char **argv)
 			if(time(nullptr) - s3state.var.last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
 				if(feedback_ready){
 					auto header = getHeader(bin_protocol::FEEDBACK);
+					header.timestamp = s3state.var.previous_feedback_time;
 					s3state.feedback[!s3state.var.current_feedback].header = header;
 					message_string = s3state.feedback[!s3state.var.current_feedback].toBinary();
 					//base64_encode(s3state.feedback[!s3state.var.current_feedback].toBinary(), message_string);
@@ -355,7 +356,9 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 			s3state.var.current_feedback = !s3state.var.current_feedback; // alternate s3state.feedback logs
 			feedback_ready = true;
 		}
+		s3state.var.previous_feedback_time = s3state.var.current_feedback_time;
 		s3state.var.current_feedback_time = midnight;
+		s3state.feedback[s3state.var.current_feedback].zone_runs.clear();
 		s3state.feedback[s3state.var.current_feedback].zone_runs.resize(schedule.zone_duration.size());
 		for(int i = 0; i < schedule.zone_duration.size(); i++){
 			s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
@@ -389,7 +392,7 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 						<< ", Flow: " << 
 						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].flow=sensor::flow_average.getAverage())
 						<< ", Run time: " << 
-						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].duration=sensor::curr_on_time) << endl;
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].duration=(sensor::curr_on_time+30)/60) << endl;
 					}
 				}
 				break;

@@ -79,7 +79,7 @@ bool getRunState(run_state_t &state, const bin_protocol::Schedule &schedule, con
 			}
 			//std::cout << "Duration " << duration << std::endl;
 			time_t end_time = start_time + duration; //TODO should log error if end and start times overlap
-			if(last_program_end_time > end_time) last_program_end_time = end_time;
+			if(last_program_end_time < end_time) last_program_end_time = end_time;
 			//std::cout << "start " << start_time << "   end " << end_time << std::endl;
 			if(start_time <= now && now < end_time) //this is the current program running
 			{
@@ -114,8 +114,10 @@ bool getRunState(run_state_t &state, const bin_protocol::Schedule &schedule, con
 			i++;
 		}
 		if(!result){
-			if(manual_end_time*60 <= now && now < first_program_start_time*60) state.type = BEFORE;
-			else if(last_program_end_time*60 <= now && now < 86400+manual_start_time*60) state.type = AFTER;
+			//std::cout << "ERTBHGWEBW" << std::endl;
+			if(manual_end_time <= now && now < first_program_start_time) state.type = BEFORE;
+			else if(last_program_end_time <= now && now < 86400+manual_start_time) state.type = AFTER;
+			//std::cout << state.type << "   " <<  last_program_end_time << "  " << now << "   " << manual_start_time << std::endl;
 		}
 	}
 	return result;

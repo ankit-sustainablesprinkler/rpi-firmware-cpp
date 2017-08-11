@@ -14,6 +14,7 @@ namespace bin_protocol{
 struct s3state_var_t {
 	time_t last_heartbeat_time = 0;
 	time_t current_feedback_time = 0;
+	time_t previous_feedback_time = 0;
 	run_state_t previous_state;
 	int current_feedback = 0;
 };

@@ -93,26 +93,30 @@ int incrementHeartbeatFail()
 bool getConfig(bin_protocol::Config &config)
 {
 	
-	std::ifstream file(CONFIG_FILE, std::ios::binary|std::ios::ate);
+	std::ifstream file(CONFIG_FILE);//, std::ios::binary|std::ios::ate);
 	if(file.is_open()){
-		std::ifstream::pos_type pos = file.tellg();
-
-		std::vector<uint8_t>  data(pos);
-		file.seekg(0, std::ios::beg);
-		file.read(reinterpret_cast<char*>(&data.front()), pos);
-		file.close();
-		if(config.fromBinary(data))return true;
+		
+		std::string str;
+		if(std::getline(file, str)){
+			std::vector<uint8_t> data;
+			base64_decode(data, str);
+			if(config.fromBinary(data))return true;
+		}
 	}
 	return false;
 }
 
 bool saveConfig(const bin_protocol::Config &config)
 {
-	auto bin_data = config.toBinary();
-	std::ofstream file(CONFIG_FILE, std::ios::out | std::ofstream::binary);
+	std::ofstream file(CONFIG_FILE, std::ios::out);// | std::ofstream::binary);
 	if(file.is_open()){
-		std::ostream_iterator<char> osi{file};
-		std::copy(bin_data.begin(),bin_data.end(),osi);
+		auto bin_data = config.toBinary();
+		std::string str;
+		base64_encode(bin_data, str);
+		file << str;
+		file.flush();
+		//std::ostream_iterator<char> osi{file};
+		//std::copy(bin_data.begin(),bin_data.end(),osi);
 		file.close();
 		return true;
 	}
@@ -121,25 +125,40 @@ bool saveConfig(const bin_protocol::Config &config)
 
 bool getSchedule(bin_protocol::Schedule &schedule)
 {
-	std::ifstream file(SCHEDULE_FILE, std::ios::binary|std::ios::ate);
+	std::ifstream file(SCHEDULE_FILE);//, std::ios::binary|std::ios::ate);
 	if(file.is_open()){
-		std::ifstream::pos_type pos = file.tellg();
+		/*int beg = file.tellg();
+		file.seekg(0, std::ios::end);
+		int size = file.tellg() - beg;*/
 
+		std::string str;
+		if(std::getline(file, str)){
+			std::vector<uint8_t> data;
+			base64_decode(data, str);
+			if(schedule.fromBinary(data))return true;
+		}
+		/*
 		std::vector<uint8_t>  data(pos);
 		file.seekg(0, std::ios::beg);
 		file.read(reinterpret_cast<char*>(&data.front()), pos);
 		file.close();
-		if(schedule.fromBinary(data))return true;
+		if(schedule.fromBinary(data))return true;*/
 	}
 	return false;;
 }
 bool saveSchedule(const bin_protocol::Schedule &schedule)
 {
-	auto bin_data = schedule.toBinary();
-	std::ofstream file(SCHEDULE_FILE, std::ios::out | std::ofstream::binary);
+	std::ofstream file(SCHEDULE_FILE, std::ios::out);// | std::ofstream::binary);
 	if(file.is_open()){
-		std::ostream_iterator<char> osi{file};
-		std::copy(bin_data.begin(),bin_data.end(),osi);
+		auto bin_data = schedule.toBinary();
+		std::string str;
+		base64_encode(bin_data, str);
+		//std::cout << "Before\n";
+		file << str;
+		//std::cout << "After\n";
+		file.flush();
+		//std::ostream_iterator<char> osi{file};
+		//std::copy(bin_data.begin(),bin_data.end(),osi);
 		file.close();
 		return true;
 	}

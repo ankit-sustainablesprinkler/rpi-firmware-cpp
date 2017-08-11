@@ -48,7 +48,7 @@ base64_err_typedef base64_encode(const std::vector<uint8_t> &data, std::string &
 
 base64_err_typedef base64_decode(std::vector<uint8_t> &data, const std::string &base64)
 {
-	std::cout << base64 << std::endl;
+	//std::cout << base64 << std::endl;
 	base64_err_typedef error = BASE64_NO_ERR;
 	if(base64.size()%4){
 		std::cout << "ERROR " << base64.size() << std::endl;

@@ -10,13 +10,13 @@
 
 #define DEBUG_MODEM
 
-//#define USE_DEBUG_SERVER
-#define USE_OFFICE_SERVER
+#define USE_DEBUG_SERVER
+//#define USE_OFFICE_SERVER
 
 #ifdef USE_DEBUG_SERVER
-#define SERVER_HOST "pwer.sillyip.com"//"s-3.us" 
+#define SERVER_HOST "34.201.91.4" //"ec2-34-201-91-4.compute-1.amazonaws.com"//"s-3.us" 
 #define SERVER_PORT 80
-#define SERVER_PATH "/~obalyuk/s3/api/bin"
+#define SERVER_PATH "/api/bin"
 #elif defined USE_OFFICE_SERVER
 #define SERVER_HOST "73.139.249.14"
 #define SERVER_PORT 80
@@ -29,8 +29,9 @@
 
 //file definitions
 #define FILE_PREFIX "/home/pi/firmware/main/logs/"
-#define CONFIG_FILE FILE_PREFIX "config.dat"
-#define SCHEDULE_FILE FILE_PREFIX "schedule.dat"
+#define SYS_FILE_PREFIX "/home/pi/firmware/main/etc/"
+#define CONFIG_FILE SYS_FILE_PREFIX "config"
+#define SCHEDULE_FILE SYS_FILE_PREFIX "schedule"
 #define HISTORY_FILE FILE_PREFIX "history.txt"
 #define HEARTBEAT_FAIL_COUNTER FILE_PREFIX "fail_count.txt"
 #define MODEM_LOG FILE_PREFIX "modem_log.txt"

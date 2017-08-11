@@ -22,6 +22,7 @@ bool voltage_state = false, voltage_state_prev = false, current_state = false, c
 time_t last_log = time(nullptr);
 time_t voltage_start = 0, current_start = 0;
 time_t volt_on_time = 0, curr_on_time = 0, flow_on_time = 0;
+time_t volt_on_time_prev = 0, curr_on_time_prev = 0, flow_on_time_prev = 0;
 
 MovingAverage<float> flow_average(50);
 MovingAverage<float> current_average(50);
@@ -76,7 +77,7 @@ void sensorRead()
 			voltage_state = false;
 			if(now > voltage_start){
 				std::cout << "Voltage off" << std::endl;
-				volt_on_time += now - voltage_start;
+				//volt_on_time += now - voltage_start;
 				std::cout << "Voltage dur: " << volt_on_time << ", Avg: " << voltage_average.getAverage() << std::endl;
 			}
 		}
@@ -84,29 +85,39 @@ void sensorRead()
 		if(solenoid_voltage > VOLTAGE_THRESHOLD*(1+HYSTERESIS)){
 			voltage_state = true;
 			std::cout << "Voltage on" << std::endl;
-			if(!voltage_state_prev) voltage_start = now;
+			//if(!voltage_state_prev) voltage_start = now;
+			voltage_start = now;
+			volt_on_time_prev = volt_on_time;
 		}
 	}
 	
+	if(voltage_state){
+		volt_on_time = volt_on_time_prev + now - voltage_start;
+	}
+
 	if(current_state){
 		if(solenoid_current < CURRENT_THRESHOLD*(1-HYSTERESIS)){
 			current_state = false;
 			if(now > current_start){
 				std::cout << "Current off" << std::endl;
-				curr_on_time += now - current_start;
+				//curr_on_time += now - current_start;
 				std::cout << "Current dur: " << curr_on_time << ", Avg: " << current_average.getAverage() << std::endl;
 			}
 		}
 	} else {
 		if(solenoid_current > CURRENT_THRESHOLD*(1+HYSTERESIS)){ 
 			current_state = true;
-			if(!current_state_prev) 
-			{
-				std::cout << "Current on" << std::endl;
-				current_start = now;
-			}
+			std::cout << "Current on" << std::endl;
+			current_start = now;
+			curr_on_time_prev = curr_on_time;
 		}
 	}
+
+	if(current_state){
+		curr_on_time = curr_on_time_prev + now - current_start;
+	}
+
+
 	
 	//std::cout << "voltage time: " << volt_on_time << " current time" << curr_on_time << std::endl;
 }
@@ -115,12 +126,14 @@ void resetCurrent()
 {
 	current_average.reset();
 	curr_on_time = 0;
+	current_state = false;
 }
 
 void resetVoltage()
 {
 	voltage_average.reset();
 	volt_on_time = 0;
+	voltage_state = false;
 }
 
 void resetFlow()

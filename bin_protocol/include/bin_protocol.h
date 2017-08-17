@@ -124,6 +124,7 @@ public:
 		std::vector<std::vector<int> > zone_duration = std::vector<std::vector<int>>(), std::vector<custom_t> custom_programs = std::vector<custom_t>());
 	std::vector<uint8_t> toBinary() const;
 	bool fromBinary(const std::vector<uint8_t> &data);
+	bool isValid();
 	Header header;
 	int ID;
 	int effective_date;

@@ -463,6 +463,11 @@ bool Schedule::fromBinary(const std::vector<uint8_t> &data)
 	} else return false;
 }
 
+bool Schedule::isValid(){
+	return this->ID != 0 && this->effective_date != 0 && this->prgm_start_times.size() > 0
+	       && this->zone_duration.size() > 0;
+}
+
 Config::Config()
 {	
 	this->ID = 0;

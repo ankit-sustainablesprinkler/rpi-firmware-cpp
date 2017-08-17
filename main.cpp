@@ -247,7 +247,6 @@ int main(int argc, char **argv)
 			//cout << "Ready: " << feedback_ready << endl;
 			//lcm.handleTimeout(50);
 			
-			
 			modem_update_mutex.lock();
 			if(schedule_ready){
 				modem_IO_mutex.lock();
@@ -258,7 +257,6 @@ int main(int argc, char **argv)
 				}catch(...){}
 				modem_IO_mutex.unlock();
 			}
-			
 			if(config_ready){
 				modem_IO_mutex.lock();
 				try{
@@ -268,18 +266,20 @@ int main(int argc, char **argv)
 				}catch(...){}
 				modem_IO_mutex.unlock();
 			}
+
 			modem_update_mutex.unlock();
 			//cout << "Start times" << endl;
 			//for(auto time : schedule.prgm_start_times){
 			//	cout << "Time: " << time << endl;
 			//}
 			sensor::sensorRead();
-			runSchedule(schedule, config);
+			if(schedule.isValid()) runSchedule(schedule, config);
 			
 			//cout << "s3state.feedback: " << s3state.feedback[s3state.var.current_feedback].manual_time << endl;
 			//cout << "other s3state.feedback: " << s3state.feedback[!s3state.var.current_feedback].manual_time << endl;
 			
 			//check if heart beat needs to be sent
+
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
 			if(time(nullptr) - s3state.var.last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
 				if(feedback_ready){

@@ -1,4 +1,5 @@
 #include "bin_protocol.h"
+#include "string.h"
 
 #include <iostream>
 
@@ -646,102 +647,37 @@ bool Feedback::fromBinary(const std::vector<uint8_t> &data){
 	} else return false;
 }
 
-/*
-class MessageFlow:
-	def __init__(self, header=MessageHeader(), averages=[]):
-		this->header = header
-		this->averages = averages
-	def toBinary(self):
-		data = bytearray()
-		data.extend(this->header.toBinary())
+Firmware::Firmware()
+{
+	this->md5_64 = 0L;
+}
 
-		zone_count = len(this->averages)
-		program_count = len(this->averages)
-		if program_count > 0:
-			zone_count = len(this->averages[0])
-			if zone_count > 0:
-				data.append(zone_count & 0xFF)
-				data.append(program_count & 0xFF)
+std::vector<uint8_t> Firmware::toBinary(const char* firmware, int size) const
+{
+	std::vector<uint8_t> data(this->header.toBinary());
+	if(firmware && size > 0){
+		for(int i = 0; i < 8; i++){
+			data.push_back((md5_64 >> (i*8))&0xff);
+		}
+		data.insert(data.end(),firmware, firmware + size);
+	}
+	putSizeIntoData(data);
+	calculateCRC(data);
+	return data;
+}
 
-				for program in this->averages:
-					for zone in program:
-						data.append(len(zone))
-				for program in this->averages:
-					for zone in program:
-						for sample in zone:
-							data.append(sample & 0xFF)
-							data.append((sample >> 8) & 0xFF)
 
-		this->header.content_length = len(data)
-		this->header.putSizeIntoData(data)
-		calculateCRC(data, this->header)
-		return data
+bool Firmware::fromBinary(const std::vector<uint8_t> &data, char *firmware, int &size)
+{
+	if(isValidData(data)){
+		if(getSizefromBinary(data) == data.size()){
+			memcpy(&this->md5_64, &data[HEADER_SIZE], 8);
+			size = data.size() - HEADER_SIZE - 8;
+			firmware = new char[size];
+			std::copy(data.begin()+HEADER_SIZE+8,data.end(), firmware);
+			return true;
+		}
+	}
+}
 
-	def fromBinary(self, data):
-		if isValidData(data):
-			if getSizefromBinary(data) == len(data):
-				this->header = MessageHeader()
-				if this->header.fromBinary(data):
-					sample_count = 0
-					sample_sizes = []
-					zone_count = data[HEADER_SIZE]
-					program_count = data[HEADER_SIZE + 1]
-					offset = HEADER_SIZE + 2
-					i=0
-					while(i < program_count):
-						j = 0
-						sample_size_row = []
-						while(j < zone_count):
-							sample_size_row.append(data[offset+j+i*zone_count])
-							j+=1
-						sample_sizes.append(sample_size_row)
-						i+=1
-					for row in sample_sizes:
-						for size in row:
-							sample_count += size
-
-					if(HEADER_SIZE + 2 + zone_count*program_count + sample_count*2 == this->header.content_length):
-						this->averages = []
-						offset = HEADER_SIZE + 2 + zone_count*program_count
-						for row in sample_sizes:
-							program = []
-							for size in row:
-								i = 0
-								zone = []
-								while(i < size):
-									zone.append(data[offset + i*2] | (data[offset + i*2 + 1] << 8))
-									i+=1
-								program.append(zone)
-								offset += size*2
-							this->averages.append(program)
-						return True
-					else: return False
-				else: return False
-			else: return False
-		else: return False
-
-class MessageFlowCalibrate:
-	def __init__(self, header=MessageHeader(), zone=0):
-		this->zone = zone
-		this->header = header
-	def toBinary(self):
-		data = bytearray()
-		data.extend(this->header.toBinary())
-
-		data.append(this->zone & 0xFF)
-		this->header.content_length = len(data)
-		this->header.putSizeIntoData(data)
-		calculateCRC(data, this->header)
-		return data
-	def fromBinary(self, data):
-		if isValidData(data):
-			if getSizefromBinary(data) == len(data):
-				this->header = MessageHeader()
-				if this->header.fromBinary(data):
-					this->zone = data[HEADER_SIZE]
-					return True
-				else: return False
-			else: return False
-		else: return False
-		*/
 }

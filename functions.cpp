@@ -1,6 +1,7 @@
 #include "functions.h"
 
 #include <wiringPi.h>
+#include <sstream>
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
@@ -276,6 +277,29 @@ bool handleHBResponse(const std::string &response, int &type)
 						std::cout << "SAVING CONFIG" << std::endl;
 						saveConfig(config);
 					}
+					break;
+				}
+				case bin_protocol::FIRMWARE:{
+					bin_protocol::Firmware firmware;
+					char* firmware_data = NULL;
+					int firmware_size;
+					if(firmware.fromBinary(data, firmware_data, firmware_size)){
+						std::ofstream new_firmware("s3-main-new", std::ofstream::binary);
+						new_firmware.write(firmware_data, firmware_size);
+						new_firmware.flush();
+						new_firmware.close();
+						auto md5_string = runCommand("md5sum s3-main-new");
+						std::stringstream converter(md5_string.substr(16));
+						uint64_t md5_64;
+						converter >> std::hex >> md5_64;
+						if(firmware.md5_64 == md5_64){
+							std::cout << "Valid firmware" << std::endl;
+						}
+
+					}
+
+					delete[] firmware_data;
+					firmware_data = NULL;
 					break;
 				}
 			}

@@ -175,5 +175,17 @@ public:
 	std::vector<std::vector<feedback_log_point_t>> zone_runs;	
 };
 
+class Firmware
+{
+public:
+	Firmware();
+	Firmware(const std::vector<uint8_t> &data);
+	std::vector<uint8_t> toBinary(const char *data, int size) const;
+	bool fromBinary(const std::vector<uint8_t> &data, char *firmware, int &size);
+	bool isValid();
+	uint64_t md5_64;
+	Header header;
+};
+
 }
 #endif

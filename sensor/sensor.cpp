@@ -70,7 +70,8 @@ bool  meterGetValues (float  &volt_ac, float &volt_solenoid, float &curr_solenoi
 	if (valid) {
 		volt_solenoid = (data & 0x7FFF) * VOLTAGE_SCALE * 2;  
 		//std::cout << "ADC Value: " << (data & 0x7FFF) << std::endl;
-		curr_solenoid = (data >> 15) * 13.4869915233978E-05f;
+		curr_solenoid = (data >> 15) * 7.706852299E-05f;
+		//std::cout << curr_solenoid << std::endl;
 	} else {
 		//volt_ac = 0.0f;
 		curr_solenoid = 0.0f;

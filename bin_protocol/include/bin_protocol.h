@@ -28,7 +28,7 @@ PROGRAMS[CUSTOM_SOD] = [0,1,2]*/
 
 namespace bin_protocol {
 	
-enum Type {HEADER =0, HEARTBEAT=1,SCHEDULE = 2, CONFIG = 3, FIRMWARE = 4, LOG = 5, FLOW = 6, FLOW_CAL = 7, FEEDBACK=8};
+enum Type {HEADER =0, HEARTBEAT=1,SCHEDULE = 2, CONFIG = 3, FIRMWARE = 4, LOG = 5, FLOW = 6, FLOW_CAL = 7, FEEDBACK=8, FLOW_CONFIG = 9};
 
 class Header
 {
@@ -135,6 +135,8 @@ public:
 	std::vector<custom_t> custom_programs;
 };
 
+
+
 class Config
 {
 public:
@@ -152,6 +154,28 @@ public:
 	int station_delay;
 	bool remain_closed;
 };
+/*
+class Config
+{
+public:
+	Config();
+	Config(Header header, int ID = 0, int manual_start_time = 0, int manual_end_time = 0, int heartbeat_period = 120, int16_t system_time_offset = 0,\
+		int station_delay = 0, bool remain_closed = true);
+	std::vector<uint8_t> toBinary() const;
+	bool fromBinary(const std::vector<uint8_t> &data);
+	Header header;
+	int ID;
+	int manual_start_time;
+	int manual_end_time;
+	int heartbeat_period;
+	int16_t system_time_offset;
+	int station_delay;
+	bool remain_closed;
+	float flow_k;
+	float flow_offset;
+	bool flow_fitted;
+};
+*/
 struct feedback_log_point_t
 {
 	float voltage;

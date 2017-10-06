@@ -14,7 +14,7 @@
 //#define USE_OFFICE_SERVER
 
 #ifdef USE_DEBUG_SERVER
-#define SERVER_HOST "34.201.91.4" //"ec2-34-201-91-4.compute-1.amazonaws.com"//"s-3.us" 
+#define SERVER_HOST "staging.s-3.us" //34.201.59.209" //"ec2-34-201-91-4.compute-1.amazonaws.com"//"s-3.us" 
 #define SERVER_PORT 80
 #define SERVER_PATH "/api/bin"
 #elif defined USE_OFFICE_SERVER

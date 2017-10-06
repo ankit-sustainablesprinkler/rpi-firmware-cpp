@@ -45,6 +45,7 @@ void sensorRead()
 	voltage_average.addValue(solenoid_voltage);
 	transformer_voltage_average.addValue(voltage);	
 	flowGet(flow);
+	//std::cout << flow << std::endl;
 	flow_average.addValue(flow);
 	//std::cout << "Voltage: " << solenoid_voltage << ", Current: " << solenoid_current << ", Flow: " << flow << std::endl;
 	//std::cout << "Voltage avg: " << voltage_average.getAverage() << ", Current avg: " << current_average.getAverage()

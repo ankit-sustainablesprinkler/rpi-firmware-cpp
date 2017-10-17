@@ -417,7 +417,7 @@ static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message)
 
 	string headers =
 		requestLine + string("Host: ") + SERVER_HOST + "\r\n" +
-		"User-Agent: S3-Burn/0.1 (Linux armv6l; en-US)\r\n" +
+		"User-Agent: S3-Burn/0.1\r\n" +
 		"Content-Length: " + to_string(message.request_messageBody.length()) + "\r\n" +
 		"Connection: close\r\n" +
 		+ "\r\n";
@@ -436,6 +436,9 @@ static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message)
 		firstBoot = false;
 	}
 	message.statusCode = 0;
+
+	cout << "Headers: " << headers << endl;
+
 	if(modem.sendRequest(headers, message)){
 		if(message.statusCode > 0) error = Modem::NONE;
 		else error = Modem::UNKNOWN;

@@ -132,10 +132,17 @@ bool isTimeToWater(const run_state_t &state, const bin_protocol::Schedule &sched
 	//TODO add fixed day schedule
 	//TODO add flag to indicate legal days to run and shift effective date when conflict occurs
 	//if schedule.is_shift:
+	int day_of_week = (now / 86400 + 3) % 7; //since UNIX epoch was on a thursday we add 3 to the day so that the 0 maps to monday in the enum
 	int difference = (midnight - schedule.effective_date)/86400;
-	int n = schedule.days + 1; //system runs every nth day.  for a 2 day skip we run once every 3 days
-	if(difference % n == 0) //is this an nth day?
-		is_scheduled_day = true;
+	if(schedule.days&0x80){
+		if(schedule.days&(2<day_of_week)) 
+			is_scheduled_day = true;
+	} else {
+		int n = schedule.days; //system runs every nth day.  for a 2 day skip we run once every 3 days
+		if(n <= 0) n = 1;
+		if(difference % n == 0) //is this an nth day?
+			is_scheduled_day = true;
+	}
 	
 	//std::cout << "type " << type << std::endl;
 	if(state.type == ZONE || state.type == DELAY)

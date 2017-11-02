@@ -749,9 +749,10 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 		
 		success = modem->SendData(headers);
 		success &= modem->SendData(message.request_messageBody);
+		//success &= modem->SendData("\r\n");
 		if(!success){
 			modem->exitDataMode();
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 			modem->SendCmd("^SISC=0", response);
 #if defined DEBUG_MODEM
 			std::cout << "ERROR\t" << "HTTP failed. executing ohShit(1)" << std::endl;
@@ -763,15 +764,19 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 		std::string data;
 		if(!modem->RecvData(data, boost::posix_time::seconds(90))){
 			modem->exitDataMode();
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 			modem->SendCmd("^SISC=0", response);
 #if defined DEBUG_MODEM
 			std::cout << "ERROR\t" << "HTTP failed. executing ohShit(1)" << std::endl;
 #endif
 			if(!ohShit(2)) return false;
 			else continue;
+		} else {
+			modem->exitDataMode();
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 		}
-
+		modem->SendCmd("^SISC",response);
+		std::cout << "HERE HERE HERE" << std::endl;
 		bool valid_http = data.find("HTTP/1.1 ") == 0;
 		
 		if (valid_http && (data.length() >= 20)) {

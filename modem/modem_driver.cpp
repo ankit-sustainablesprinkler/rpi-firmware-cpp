@@ -637,7 +637,10 @@ bool ModemDriver::WaitURC (const std::string &urc, std::string &data, posix_time
 
 void ModemDriver::exitDataMode()
 {
+
+	std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 	SendData("+++");
+	std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 	//std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	//SendData("+");
 //	SendData("+");

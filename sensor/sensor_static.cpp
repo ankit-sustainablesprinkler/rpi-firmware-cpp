@@ -11,11 +11,11 @@
 #define FILE_PREFIX "/home/pi/firmware/main/logs/"
 #define EVENT_LOG FILE_PREFIX "event_log.txt"
 #define SENSOR_LOG FILE_PREFIX "sensor_log.txt"
-#define FILTER_DELAY 4
-#define CURRENT_THRESHOLD 0.08
-#define VOLTAGE_THRESHOLD 10.0
+#define FILTER_DELAY 4 //seconds
+#define CURRENT_THRESHOLD 0.08 //None of the clocks in the office had a standby current of more than 60 mA
+#define VOLTAGE_THRESHOLD 10.0 //abitrary value
 #define FLOW_THRESHOLD 1.0
-#define HYSTERESIS 0.05
+#define HYSTERESIS 0.05 //5%
 namespace sensor{
 	
 bool voltage_state = false, voltage_state_prev = false, current_state = false, current_state_prev = false;

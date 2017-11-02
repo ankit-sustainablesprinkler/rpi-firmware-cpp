@@ -6,4 +6,5 @@ s3-main
 test
 logs/
 etc/
-
+*.gz
+*.bin

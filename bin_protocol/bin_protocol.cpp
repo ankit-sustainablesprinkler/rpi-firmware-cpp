@@ -123,9 +123,10 @@ Heartbeat::Heartbeat()
 	this->extra_content = "";
 }
 
-Heartbeat::Heartbeat(Header header, int up_time, int schedule_id, int config_id, int tempurature, int signal, std::string state, std::string extra_content)
+Heartbeat::Heartbeat(Header header, int up_time, int schedule_id, int config_id, int temperature, int signal, std::string state, std::string extra_content, int flow_id)
 {
 	this->header = header;
+	this->header.type = HEARTBEAT;
 	this->up_time = up_time;
 	this->schedule_id = schedule_id;
 	this->config_id = config_id;
@@ -133,6 +134,7 @@ Heartbeat::Heartbeat(Header header, int up_time, int schedule_id, int config_id,
 	this->signal = signal;
 	this->state = state;
 	this->extra_content = extra_content;
+	this->flow_id = flow_id;
 }
 
 std::vector<uint8_t> Heartbeat::toBinary() const
@@ -144,6 +146,7 @@ std::vector<uint8_t> Heartbeat::toBinary() const
 	data.push_back((this->up_time >> 24) & 0xFF);
 	data.push_back(this->schedule_id & 0xFF);
 	data.push_back(this->config_id & 0xFF);
+	data.push_back(this->flow_id&0xFF);
 	data.push_back(this->temperature & 0xFF);
 	data.push_back(this->signal & 0xFF);
 	data.push_back(this->state == "close" ? 1 : 0);
@@ -170,9 +173,10 @@ bool Heartbeat::fromBinary(const std::vector<uint8_t> &data)
 				this->up_time = data[HEADER_SIZE] | (data[HEADER_SIZE+1] << 8) | (data[HEADER_SIZE+2] << 16) | (data[HEADER_SIZE+3] << 24);
 				this->schedule_id = data[HEADER_SIZE+4];
 				this->config_id = data[HEADER_SIZE+5];
-				this->temperature = data[HEADER_SIZE+6];
-				this->signal = data[HEADER_SIZE+7];
-				this->state = (data[HEADER_SIZE+8] & 0x01) == 0x01 ? "close" : "open";
+				this->flow_id = data[HEADER_SIZE + 6];
+				this->temperature = data[HEADER_SIZE+7];
+				this->signal = data[HEADER_SIZE+8];
+				this->state = (data[HEADER_SIZE+9] & 0x01) == 0x01 ? "close" : "open";
 				this->extra_content.clear();
 				if(size > 0){
 					this->extra_content.insert(extra_content.end(), data.begin()+HEARTBEAT_SIZE, data.end());
@@ -478,10 +482,11 @@ Config::Config()
 	this->system_time_offset = 0;
 	this->station_delay = 0;
 	this->remain_closed = 0;
+	this->flow_fitted = 0;
 }
 
 Config::Config(Header header, int ID, int manual_start_time, int manual_end_time, int heartbeat_period, int16_t system_time_offset,\
-               int station_delay, bool remain_closed)
+               int station_delay, bool remain_closed, bool flow_fitted, uint8_t time_drift_thr)
 {
 	this->header = header;
 	this->ID = ID;
@@ -491,6 +496,10 @@ Config::Config(Header header, int ID, int manual_start_time, int manual_end_time
 	this->system_time_offset = system_time_offset;
 	this->station_delay = station_delay;
 	this->remain_closed = remain_closed;
+	this->flow_fitted = flow_fitted;
+	this->time_drift_thr = time_drift_thr;
+
+
 }
 
 std::vector<uint8_t> Config::toBinary() const
@@ -507,7 +516,8 @@ std::vector<uint8_t> Config::toBinary() const
 	data.push_back(this->system_time_offset & 0xFF);
 	data.push_back((this->system_time_offset >> 8) & 0xFF);
 	data.push_back(this->station_delay & 0xFF);
-	data.push_back((this->station_delay >> 8) & 0x7F | (this->remain_closed ? 0x80 : 0x00));
+	data.push_back((this->station_delay >> 8) & 0x3F | (this->remain_closed ? 0x80 : 0x00) | (this->flow_fitted ? 0x40 : 0x00));
+	data.push_back(this->time_drift_thr);
 
 	//this->header.content_length = data.size();
 	putSizeIntoData(data);
@@ -532,8 +542,10 @@ bool Config::fromBinary(const std::vector<uint8_t> &data)
 				{
 					this->system_time_offset -= 0x10000  #since python does not have a int16_t (or any explicit type), we have to manualy calculate it like a savage
 				}*/
-				this->station_delay = (data[HEADER_SIZE+9] | (data[HEADER_SIZE+10] << 8)) & 0x7FFF; // remove most significant bit because it is for the remain_closed
+				this->station_delay = (data[HEADER_SIZE+9] | (data[HEADER_SIZE+10] << 8)) & 0x3FFF; // remove most significant bit because it is for the remain_closed
 				this->remain_closed = (data[HEADER_SIZE + 10] & 0x80) != 0x00;
+				this->flow_fitted = (data[HEADER_SIZE + 10] & 0x40) != 0x00;
+				this->time_drift_thr = data[HEADER_SIZE + 11];
 				return true;
 			} else return false;
 		} else return false;
@@ -569,13 +581,16 @@ std::vector<uint8_t> Feedback::toBinary() const
 	data.push_back(this->zone_runs.size() & 0xFF);
 	if(zone_runs.size() > 0){
 		data.push_back(zone_runs[0].size());
-		
-		
+
 		for(auto program : this->zone_runs){
 			for(int i = 0; i < zone_runs[0].size(); i++){
 				if(i < program.size()){
 					int val;
 					val = program[i].voltage * 5.0f;
+					if(val > 255) val = 255;
+					if(val < 0) val = 0;
+					data.push_back(val);
+					val = program[i].xfmr_voltage * 5.0f;
 					if(val > 255) val = 255;
 					if(val < 0) val = 0;
 					data.push_back(val);
@@ -598,11 +613,10 @@ std::vector<uint8_t> Feedback::toBinary() const
 				}
 			}
 		}
-		
+
 	} else {
 		data.push_back(0);
 	}
-	
 
 	//this->header.content_length = data.size();
 	putSizeIntoData(data);
@@ -611,7 +625,7 @@ std::vector<uint8_t> Feedback::toBinary() const
 }
 
 bool Feedback::fromBinary(const std::vector<uint8_t> &data){
-	
+
 	if(isValidData(data))
 	{
 		if(getSizefromBinary(data) == data.size())
@@ -623,7 +637,7 @@ bool Feedback::fromBinary(const std::vector<uint8_t> &data){
 				this->after_time=data[HEADER_SIZE+4] | (data[HEADER_SIZE + 5] << 8);
 				int prgm_count = data[HEADER_SIZE+6];
 				int zone_count = data[HEADER_SIZE+7];
-				
+
 				this->zone_runs.resize(prgm_count);
 				if(prgm_count){
 					for(int i = 0; i < prgm_count; i++){
@@ -640,7 +654,7 @@ bool Feedback::fromBinary(const std::vector<uint8_t> &data){
 						zone_runs[i][j].run = (bool) data[offset + (i * zone_count + j)*5 + 4];
 					}
 				}
-				
+
 				return true;
 			} else return false;
 		} else return false;
@@ -667,17 +681,191 @@ std::vector<uint8_t> Firmware::toBinary(const char* firmware, int size) const
 }
 
 
-bool Firmware::fromBinary(const std::vector<uint8_t> &data, char *firmware, int &size)
+bool Firmware::fromBinary(const std::vector<uint8_t> &data, char* &firmware, int &size)
 {
 	if(isValidData(data)){
 		if(getSizefromBinary(data) == data.size()){
 			memcpy(&this->md5_64, &data[HEADER_SIZE], 8);
 			size = data.size() - HEADER_SIZE - 8;
+			if(firmware){
+				delete[] firmware;
+				firmware = NULL;
+			}
 			firmware = new char[size];
 			std::copy(data.begin()+HEADER_SIZE+8,data.end(), firmware);
+			std::cout << (int)firmware << "  " << size << std::endl;
 			return true;
 		}
 	}
+}
+
+FlowFeedback::FlowFeedback(){
+
+}
+
+FlowFeedback::FlowFeedback(const Header &header, const std::vector<std::tuple<int32_t, float>> &samples){
+	this->header = header;
+	this->header.type = FLOW;
+	this->samples = samples;
+}
+
+std::vector<uint8_t> FlowFeedback::toBinary() const
+{
+	std::vector<uint8_t> data(this->header.toBinary());
+
+	float max_flow = 0.0f;
+	uint16_t count = 0;
+	for(auto sample : this->samples){
+		float flow = std::get<1>(sample);
+		int32_t t = std::get<0>(sample) - this->header.timestamp;
+		if(t >= 0 and t < 86400){
+			count++;
+			if(flow > max_flow) max_flow = flow;
+		}
+	}
+	int max_flow_int = *((int*)(&max_flow));
+	data.push_back(max_flow_int & 0xFF);
+	data.push_back((max_flow_int >> 8) & 0xFF);
+	data.push_back((max_flow_int >> 16) & 0xFF);
+	data.push_back((max_flow_int >> 24) & 0xFF);
+	data.push_back(count&0xFF);
+	data.push_back((count>>8)&0xFF);
+
+	for(auto sample : this->samples){
+		float flow = std::get<1>(sample);
+		int32_t t = std::get<0>(sample) - this->header.timestamp;
+		if(t >= 0 and t < 86400){
+			uint32_t val = t & 0x1FFFF;
+			if(max_flow > 0.0f){
+				uint32_t normalized_flow = (uint32_t)((flow / max_flow) * 0x7FFF + 0.5f);
+				val |= normalized_flow << 17;
+			}
+
+			data.push_back(val & 0xFF);
+			data.push_back((val >> 8) & 0xFF);
+			data.push_back((val >> 16) & 0xFF);
+			data.push_back((val >> 24) & 0xFF);
+		}
+	}
+
+	putSizeIntoData(data);
+	calculateCRC(data);
+	return data;
+}
+
+AlertFeedback::AlertFeedback(){
+
+}
+
+AlertFeedback::AlertFeedback(const Header &header, const std::vector<std::tuple<int32_t, char, std::string>> &alerts){
+	this->header = header;
+	this->header.type = ALERT;
+	this->alerts = alerts;
+}
+
+std::vector<uint8_t> AlertFeedback::toBinary() const
+{
+	std::vector<uint8_t> data(this->header.toBinary());
+	data.push_back(this->alerts.size()&0xFF);
+	data.push_back((this->alerts.size()>>8)&0xFF);
+	for(auto alert : this->alerts){
+		char type = std::get<1>(alert);
+		int32_t t = std::get<0>(alert);
+		std::string s = std::get<2>(alert);
+		data.push_back(t & 0xFF);
+		data.push_back((t >> 8) & 0xFF);
+		data.push_back((t >> 16) & 0xFF);
+		data.push_back((t >> 24) & 0xFF);
+		data.push_back(type);
+		data.push_back(s.length());
+		std::copy(s.begin(), s.end(), std::back_inserter(data));
+	}
+	putSizeIntoData(data);
+	calculateCRC(data);
+	return data;
+}
+
+CalibrationSetup::CalibrationSetup(){
+
+}
+
+CalibrationSetup::CalibrationSetup(const Header &header, std::vector<uint8_t> zones, uint8_t min_time, uint8_t max_time){
+	this->header = header;
+	this->header.type=FLOW_CAL;
+	this->zones = zones;
+	this->min_sample_time = min_time;
+	this->max_sample_time = max_time;
+}
+
+bool CalibrationSetup::fromBinary(const std::vector<uint8_t> &data)
+{
+	if(isValidData(data)){
+		if(getSizefromBinary(data) == data.size() && data.size() == HEADER_SIZE+7){
+			if(this->header.fromBinary(data))
+			{
+				this->zones.clear();
+				this->min_sample_time = data[HEADER_SIZE];
+				this->max_sample_time = data[HEADER_SIZE + 1];
+				uint64_t zone_mask = 0;
+				memcpy(&zone_mask,&data[HEADER_SIZE+2],5);
+				for(int i = 0; i<40; i++){
+					if(zone_mask & (1<<i)){
+						this->zones.push_back(i);
+					}
+				}
+				return true;
+			}
+		}
+	}
+}
+
+FlowConfiguration::FlowConfiguration()
+{
+
+}
+
+bool FlowConfiguration::fromBinary(const std::vector<uint8_t> &data)
+{
+	if(isValidData(data)){
+		if(getSizefromBinary(data) == data.size()){
+			if(this->header.fromBinary(data))
+			{
+				this->id = data[HEADER_SIZE];
+				memcpy(&this->offset, &data[HEADER_SIZE + 1], 4);
+				memcpy(&this->K, &data[HEADER_SIZE + 5], 4);
+				this->flow_thr_high = data[HEADER_SIZE+9];
+				this->flow_thr_low = data[HEADER_SIZE+10];
+				memcpy(&this->flow_thr_min, &data[HEADER_SIZE+11], 4);
+				this->flow_interval = data[HEADER_SIZE+15] | (data[HEADER_SIZE+16] << 8);
+				this->flow_count_thr = data[HEADER_SIZE + 17];
+				return true;
+			}
+		}
+	}
+}
+
+CalibrationResult::CalibrationResult()
+{
+	this->header.type=FLOW_RESULT;
+}
+std::vector<uint8_t> CalibrationResult::toBinary() const
+{
+	std::vector<uint8_t> data(this->header.toBinary());
+	data.push_back(this->flow_values.size()&0xFF);
+	for(auto value : this->flow_values){
+		uint8_t zone = std::get<0>(value);
+		float avg = std::get<1>(value);
+		float dev = std::get<2>(value);
+		data.push_back(zone);
+		uint8_t* arr;
+		arr = reinterpret_cast<uint8_t*>(&avg);
+		std::copy(arr,arr+4,std::back_inserter(data));
+		arr = reinterpret_cast<uint8_t*>(&dev);
+		std::copy(arr,arr+4,std::back_inserter(data));
+	}
+	putSizeIntoData(data);
+	calculateCRC(data);
+	return data;
 }
 
 }

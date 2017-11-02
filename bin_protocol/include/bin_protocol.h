@@ -1,12 +1,13 @@
 #ifndef _BIN_PROTOCOL_H_
 #define _BIN_PROTOCOL_H_
 #include <vector>
+#include <tuple>
 #include <stdint.h>
 #include <string>
 #include "crc16.h"
 
 #define HEADER_SIZE 16
-#define HEARTBEAT_SIZE (HEADER_SIZE + 11)
+#define HEARTBEAT_SIZE (HEADER_SIZE + 12)
 #define LOG_ENTRY_SIZE 7
 
 #define CUSTOM_LESS_WATER 0
@@ -28,7 +29,7 @@ PROGRAMS[CUSTOM_SOD] = [0,1,2]*/
 
 namespace bin_protocol {
 	
-enum Type {HEADER =0, HEARTBEAT=1,SCHEDULE = 2, CONFIG = 3, FIRMWARE = 4, LOG = 5, FLOW = 6, FLOW_CAL = 7, FEEDBACK=8, FLOW_CONFIG = 9};
+enum Type {HEADER =0, HEARTBEAT=1,SCHEDULE = 2, CONFIG = 3, FIRMWARE = 4, LOG = 5, FLOW = 6, FLOW_CAL = 7, FEEDBACK=8, FLOW_CONFIG = 9, ALERT=10, FLOW_RESULT=11};
 
 class Header
 {
@@ -72,12 +73,13 @@ class Heartbeat
 {
 public:
 	Heartbeat();
-	Heartbeat(Header header, int up_time = 0, int schedule_id = 0, int config_id = 0, int temperature = 0, int signal = 0, std::string state = "open", std::string extra_content = "");
+	Heartbeat(Header header, int up_time = 0, int schedule_id = 0, int config_id = 0, int temperature = 0, int signal = 0, std::string state = "open", std::string extra_content = "", int flow_id = 0);
 	std::vector<uint8_t> toBinary() const;
 	bool fromBinary(const std::vector<uint8_t> &data);
 	int up_time;
 	int schedule_id;
 	int config_id;
+	int flow_id;
 	int temperature;
 	int signal;
 	std::string state;
@@ -142,7 +144,7 @@ class Config
 public:
 	Config();
 	Config(Header header, int ID = 0, int manual_start_time = 0, int manual_end_time = 0, int heartbeat_period = 120, int16_t system_time_offset = 0,\
-		int station_delay = 0, bool remain_closed = true);
+		int station_delay = 0, bool remain_closed = true, bool flow_fitted=false, uint8_t time_drift_thr=0);
 	std::vector<uint8_t> toBinary() const;
 	bool fromBinary(const std::vector<uint8_t> &data);
 	Header header;
@@ -153,6 +155,8 @@ public:
 	int16_t system_time_offset;
 	int station_delay;
 	bool remain_closed;
+	bool flow_fitted;
+	uint8_t time_drift_thr;
 };
 /*
 class Config
@@ -181,6 +185,7 @@ struct feedback_log_point_t
 	float voltage;
 	float current;
 	float flow;
+	float xfmr_voltage;
 	uint8_t duration;
 	bool run;
 };
@@ -205,10 +210,84 @@ public:
 	Firmware();
 	Firmware(const std::vector<uint8_t> &data);
 	std::vector<uint8_t> toBinary(const char *data, int size) const;
-	bool fromBinary(const std::vector<uint8_t> &data, char *firmware, int &size);
+	bool fromBinary(const std::vector<uint8_t> &data, char* &firmware, int &size);
 	bool isValid();
 	uint64_t md5_64;
 	Header header;
+};
+
+/*
+{
+	"header": {
+		"timestamp": 1506971950,
+		"version": 2,
+		"type": 6,
+		"ID": 2630616231
+	},
+	"flow_samples": [
+		{ "t": 124553125, "f": 34.5},
+		{ "t": 124553135, "f": 33.5},
+		{ "t": 124553145, "f": 33.9},
+		{ "t": 124553155, "f": 33.6},
+		{ "t": 124553165, "f": 109.7}
+	]
+}*/
+
+class FlowFeedback
+{
+public:
+	FlowFeedback();
+	FlowFeedback(const Header &header, const std::vector<std::tuple<int32_t, float>> &samples);
+	std::vector<uint8_t> toBinary() const;
+	Header header;
+	std::vector<std::tuple<int32_t, float>> samples;
+};
+
+class AlertFeedback
+{
+public:
+	AlertFeedback();
+	AlertFeedback(const Header &header, const std::vector<std::tuple<int32_t, char, std::string>> &alerts);
+	std::vector<uint8_t> toBinary() const;
+	Header header;
+	std::vector<std::tuple<int32_t, char, std::string>> alerts;
+};
+
+class CalibrationSetup
+{
+public:
+	CalibrationSetup();
+	CalibrationSetup(const Header &header, std::vector<uint8_t> zones, uint8_t min_time = 60, uint8_t max_time = 120);
+	bool fromBinary(const std::vector<uint8_t> &data);
+	Header header;
+	std::vector<uint8_t> zones;
+	uint8_t min_sample_time;
+	uint8_t max_sample_time;
+};
+
+class FlowConfiguration
+{
+public:
+	FlowConfiguration();
+	bool fromBinary(const std::vector<uint8_t> &data);
+	Header header;
+	uint8_t id;
+	float offset;
+	float K;
+	uint8_t flow_thr_high;
+	uint8_t flow_thr_low;
+	float flow_thr_min;
+	uint8_t flow_interval;
+	uint8_t flow_count_thr;
+};
+
+class CalibrationResult
+{
+public:
+	CalibrationResult();
+	std::vector<uint8_t> toBinary() const;
+	Header header;
+	std::vector<std::tuple<int, float, float>> flow_values;
 };
 
 }

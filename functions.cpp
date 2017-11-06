@@ -1,6 +1,7 @@
 #include "functions.h"
 
 #include <wiringPi.h>
+#include "modem.h"
 #include <sstream>
 #include <cstdio>
 #include <memory>
@@ -171,8 +172,9 @@ bin_protocol::Header getHeader(bin_protocol::Type type)
 	return bin_protocol::Header(FIRMWARE_VERSION, type, std::time(nullptr), getSerialNumber());
 }
 
-bin_protocol::Heartbeat getHeartbeat(bool isFirst)
+bin_protocol::Heartbeat getHeartbeat(std::string extra_content)
 {
+	//std::cout << "Stuff: " << extra_content << std::endl;
 	auto header = getHeader(bin_protocol::HEARTBEAT);
 	int up_time = getUpTime();
 	bin_protocol::Schedule schedule;
@@ -182,7 +184,7 @@ bin_protocol::Heartbeat getHeartbeat(bool isFirst)
 	int temp = (int) getTemperature();
 	//TODO modem stuff.
 	std::string state = getRelayState() ? "close" : "open";
-	return bin_protocol::Heartbeat(header, up_time, schedule.ID, config.ID, temp, 0, state);
+	return bin_protocol::Heartbeat(header, up_time, schedule.ID, config.ID, temp, 0, state, extra_content);
 }
 
 bool getRelayState()

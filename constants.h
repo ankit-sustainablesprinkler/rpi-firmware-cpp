@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define FIRMWARE_VERSION 2
+#define FIRMWARE_VERSION 3
 
 #define PIN_WDT_RESET 2
 #define PIN_RELAY 3
@@ -15,7 +15,7 @@
 
 #ifdef USE_DEBUG_SERVER
 #define SERVER_HOST "staging.s-3.us" //34.201.59.209" //"ec2-34-201-91-4.compute-1.amazonaws.com"//"s-3.us" 
-#define SERVER_PORT 8080
+#define SERVER_PORT 8080 //8118
 #define SERVER_PATH "/api/bin"
 #elif defined USE_OFFICE_SERVER
 #define SERVER_HOST "73.139.249.14"

@@ -27,7 +27,7 @@ int incrementHeartbeatFail();
 
 bin_protocol::Header getHeader(bin_protocol::Type type);
 
-bin_protocol::Heartbeat getHeartbeat(bool isFirst);
+bin_protocol::Heartbeat getHeartbeat(std::string extra_content="");
 
 bool getRelayState();
 

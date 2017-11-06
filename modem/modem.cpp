@@ -746,8 +746,8 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 			if(!ohShit(2)) return false;
 			else continue;
 		}
-		
-		success = modem->SendData(headers);
+		success = 1;
+		if(headers.size() > 0)success = modem->SendData(headers);
 		success &= modem->SendData(message.request_messageBody);
 		//success &= modem->SendData("\r\n");
 		if(!success){

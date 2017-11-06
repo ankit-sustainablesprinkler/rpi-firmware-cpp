@@ -18,7 +18,7 @@
 #define HYSTERESIS 0.05 //5%
 namespace sensor{
 	
-bool voltage_state = false, voltage_state_prev = false, current_state = false, current_state_prev = false;
+bool voltage_state = false, current_state = false;
 time_t last_log = time(nullptr);
 time_t voltage_start = 0, current_start = 0;
 time_t volt_on_time = 0, curr_on_time = 0, flow_on_time = 0;

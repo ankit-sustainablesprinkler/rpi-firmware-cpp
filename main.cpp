@@ -43,10 +43,13 @@ Feedback s3state.feedback[2]; // keep two s3state.feedback logs so we can contin
 int s3state.var.current_feedback = 0;*/
 std::vector<uint8_t> message_string;
 s3state_t s3state;
+bool has_modem_info_sent = false;
+string extra_content = "";
 
 
 namespace sensor{
 extern time_t volt_on_time, curr_on_time, flow_on_time;
+extern bool voltage_state, voltage_state_prev, current_state, current_state_prev;
 extern MovingAverage<float> flow_average;
 extern MovingAverage<float> current_average;
 extern MovingAverage<float> voltage_average;
@@ -174,79 +177,28 @@ int main(int argc, char **argv)
 		bool has_config = getConfig(config);
 		time_t heartbeat_period = HEARTBEAT_MIN_PERIOD;//config.heartbeat_period;
 		if(heartbeat_period < HEARTBEAT_MIN_PERIOD) heartbeat_period = HEARTBEAT_MIN_PERIOD;
-		
-		//try and send first heartbeat
-		while(false){
-			modem_reply_t message; 
-			Heartbeat heartbeat = getHeartbeat(true);
-			base64_encode(heartbeat.toBinary(), message.request_messageBody);
-			Modem::ErrType error = Modem::NONE;
-			try{
-				error = modemPut(modem, message);
-			} catch (FailureException e){
-#ifdef DEBUG_MODEM
-				cout << e.what();
-#endif
-			} catch (...) { }
-			if(error == Modem::NONE){
-				modem_fail_count = 0;
-				setHeartbeatFailCount(0);
-#ifdef DEBUG_MODEM
-				cout << "Tying to handle response" << endl;
-#endif
-				int type;
-				handleHBResponse(message.response_messageBody, type);
-				s3state.var.last_heartbeat_time = time(nullptr);
-				
-				logModem(to_string(time(nullptr)) + " INFO Modem sent heartbeat");
-				cout << "Sent heartbeat" << endl;
-				break;
-			} else {
-				logModem(to_string(time(nullptr)) + " ERROR Modem failed to send heartbeat");
-				modem_fail_count++;
-#ifdef DEBUG_MODEM
-				cout << "##### Failed to connect." << endl << "Incrementing error count to: " << modem_fail_count << endl;
-#endif
-				if(modem_fail_count > 3){
-					logModem(to_string(time(nullptr)) + " ERROR Modem fail exceeded threshold.");
-					if(incrementHeartbeatFail() > 3 && RTC_fitted){
-						modem_fail_count = 0; //we can just continue since RTC is present
-						break;
-					} else { //Just keep commiting seppuku since there is nothing the system can do without the updated time.
-						//reboot()
-						if(!triedReset){
-								logModem(to_string(time(nullptr)) + " INFO Hard reseting modem.");
-								triedReset = true;
-								modem.hardReset();
-								modem.Open(SERIAL_PORT, 115200);
-						} else {
-							triedReset = false;
-#ifdef DEBUG_MODEM
-							cout << "Commiting seppuku" << endl;
-#endif
-							logModem(to_string(time(nullptr)) + " WARN Commiting seppuku.");
-							//modem_fail_count = 0;
-							rebootSystem();
-							this_thread::sleep_for(chrono::seconds(60));
-							//return 2;
-						}
-					}
-				}
-				
-				logModem(to_string(time(nullptr)) + " INFO Soft reseting modem.");
-				modem.Reset();
-				this_thread::sleep_for(chrono::seconds(30)); // wait before trying again;
-			}
+
+		//send first heartbeat
+		//string extra_content = "";
+		try{
+			extra_content = "{\"Phone\":\"" + modem.Phone() + "\",\"IMEI\":\"" + modem.IMEI() + "\"}";
+		} catch (exception e) {
+			cout << e.what() << endl;
+		} catch (...) {
+
 		}
-		
-		
+		Heartbeat heartbeat = getHeartbeat(extra_content);
+		message_string = heartbeat.toBinary();
+		modem_cond.notify_all();
+		this_thread::sleep_for(chrono::seconds(1));
+
 		//main loop
 		cout << "============ Entering main loop ================" << endl;
 		while(true)
 		{
 			//cout << "Ready: " << feedback_ready << endl;
 			//lcm.handleTimeout(50);
-			
+			//cout << extra_content <<endl;
 			modem_update_mutex.lock();
 			if(schedule_ready){
 				modem_IO_mutex.lock();
@@ -268,17 +220,9 @@ int main(int argc, char **argv)
 			}
 
 			modem_update_mutex.unlock();
-			//cout << "Start times" << endl;
-			//for(auto time : schedule.prgm_start_times){
-			//	cout << "Time: " << time << endl;
-			//}
+
 			sensor::sensorRead();
 			if(schedule.isValid()) runSchedule(schedule, config);
-			
-			//cout << "s3state.feedback: " << s3state.feedback[s3state.var.current_feedback].manual_time << endl;
-			//cout << "other s3state.feedback: " << s3state.feedback[!s3state.var.current_feedback].manual_time << endl;
-			
-			//check if heart beat needs to be sent
 
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
 			if(time(nullptr) - s3state.var.last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
@@ -289,7 +233,8 @@ int main(int argc, char **argv)
 					message_string = s3state.feedback[!s3state.var.current_feedback].toBinary();
 					//base64_encode(s3state.feedback[!s3state.var.current_feedback].toBinary(), message_string);
 				} else {
-					Heartbeat heartbeat = getHeartbeat(false);
+					
+					Heartbeat heartbeat = getHeartbeat(extra_content);
 					message_string = heartbeat.toBinary();
 					//base64_encode(heartbeat.toBinary(), message_string);
 				}
@@ -358,17 +303,52 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 		}
 		s3state.var.previous_feedback_time = s3state.var.current_feedback_time;
 		s3state.var.current_feedback_time = midnight;
+		s3state.feedback[s3state.var.current_feedback].manual_runs.clear();
 		s3state.feedback[s3state.var.current_feedback].zone_runs.clear();
 		s3state.feedback[s3state.var.current_feedback].zone_runs.resize(schedule.zone_duration.size());
 		for(int i = 0; i < schedule.zone_duration.size(); i++){
 			s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
 		}
 	}
-	//s3state.feedback[s3state.var.current_feedback].manual_time = 10;
-	//transition events
+	
+
+	//========================== Transition Events =======================
+	//Voltage on event
+	s3state.var.voltage_state = sensor::voltage_state;
+	if(s3state.var.voltage_state && !s3state.var.voltage_state_prev){
+
+
+		s3state.var.voltage_state_prev = s3state.var.voltage_state;
+	}
+
+	//current on event
+	s3state.var.current_state = sensor::current_state;
+	if(s3state.var.current_state && !s3state.var.current_state_prev){
+		if(state.type == MANUAL){
+			//insert manual run in feedback
+			cout << "Well something is happening..." << endl;
+			s3state.feedback[s3state.var.current_feedback].manual_runs.push_back(make_tuple<int, uint16_t>(now, 0));
+			cout << s3state.feedback[s3state.var.current_feedback].manual_runs.size();
+		}
+
+		s3state.var.current_state_prev = s3state.var.current_state;
+	}
+	//current off event
+	if(!s3state.var.current_state && s3state.var.current_state_prev){
+		if(state.type == MANUAL){
+			//insert curr_on_time into last event
+			if(s3state.feedback[s3state.var.current_feedback].manual_runs.size() > 0){
+				cout << "And some other stuff." << endl;
+				get<1>(s3state.feedback[s3state.var.current_feedback].manual_runs.back()) = (sensor::curr_on_time + 30) / 60;
+				sensor::curr_on_time = 0;
+			}
+		}
+
+		s3state.var.current_state_prev = s3state.var.current_state;
+	}
+
 	if(state_changed){
 		cout << "State changed from " << s3state.var.previous_state.type << " to " << state.type << endl;
-		cout << (int)MANUAL << endl;
 		switch(s3state.var.previous_state.type){
 			case BEFORE:
 				s3state.feedback[s3state.var.current_feedback].before_time = sensor::volt_on_time;
@@ -378,7 +358,7 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 				break;
 			case MANUAL:
 				cout << "Manual state: " << sensor::curr_on_time << endl;
-				s3state.feedback[s3state.var.current_feedback].manual_time = sensor::curr_on_time;
+				//s3state.feedback[s3state.var.current_feedback].manual_time = sensor::curr_on_time;
 				break;
 			case ZONE:
 				cout << "Zone run" << endl;
@@ -437,7 +417,7 @@ static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message)
 	message.statusCode = 0;
 
 	cout << "Headers: " << headers << endl;
-
+	//message.request_messageBody += "\r\n";
 	if(modem.sendRequest(headers, message)){
 		if(message.statusCode > 0) error = Modem::NONE;
 		else error = Modem::UNKNOWN;
@@ -465,11 +445,17 @@ void modemThread(bool RTC_fitted)
 {
 	while(true)
 	{
+		//cout << "treggqrgqg	" << extra_content
 		unique_lock<mutex> lk(modem_mutex);
 		modem_cond.wait(lk);
 		
 		int modem_fail_count = 0;
 		bool triedReset = false;
+		if(extra_content != ""){
+			//cout << "CLEARING rtghjetykjhtnjrenwgdghet65y7jhtgraujsyhrtegayusjthyerg" << endl;
+			extra_content = "";
+			has_modem_info_sent = true;
+		}
 		
 		while(modem_fail_count <= 3){
 			
@@ -498,19 +484,41 @@ void modemThread(bool RTC_fitted)
 			
 			modem_reply_t message;
 			base64_encode(message_string, message.request_messageBody);
+			auto msg_type = bin_protocol::getTypefromBinary(message_string);
 #if defined DEBUG_MODEM
 			cout << "REQUEST: " << message.request_messageBody << endl;
 #endif
 			Modem::ErrType error = Modem::NONE;
 			try{
 				error = modemPut(modem, message);
+				if(!has_modem_info_sent && extra_content == ""){
+					try{
+						//cout << "YTHJEKJYTJIKJUEUJBTTBVRTYREYTEVYERTYVE" << endl;
+						modem_info_t info;
+						if(modem.getInfo(info)){
+							extra_content = "{\"phone\":" + info.phone + ","\
+							"\"imei\":\"" + info.imei + "\","\
+							"\"rssi\":" + to_string(info.rssi) + ","\
+							"\"manufacturer\":\"" + info.manufacturer + "\","\
+							"\"version\":\"" + info.softwareVersion + "\","\
+							"\"model\":\"" + info.model + "\"}";
+							//cout << "Extra content: " << extra_content << endl;
+						} else {
+							cout << "Error getting modem params" << endl;
+						}
+					} catch (exception e) {
+						cout << e.what() << endl;
+					} catch (...) {
+						cout << "What" << endl;
+					}
+				}
 			} catch (FailureException e){
 #if defined DEBUG_MODEM
 				cout << e.what();
 #endif
 			} catch (...) { }
 			if(error == Modem::NONE){
-				if(bin_protocol::getTypefromBinary(message_string) == bin_protocol::FEEDBACK) feedback_ready = false;
+				if(msg_type == bin_protocol::FEEDBACK) feedback_ready = false;// reset feedback ready
 				modem_fail_count = 0;
 				int type;
 				modem_IO_mutex.lock();
@@ -535,7 +543,7 @@ void modemThread(bool RTC_fitted)
 							cout << "READY for SCHEDULE" << endl;
 							schedule_ready = true;
 							break;
-					}					
+					}
 					modem_update_mutex.unlock();
 				}
 				logModem(to_string(time(nullptr)) + " INFO Modem sent heartbeat");

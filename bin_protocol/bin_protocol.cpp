@@ -2,6 +2,7 @@
 #include "string.h"
 
 #include <iostream>
+#include <tuple>
 
 namespace bin_protocol{
 bool isValidData(const std::vector<uint8_t> &data)
@@ -553,6 +554,8 @@ bool Config::fromBinary(const std::vector<uint8_t> &data)
 }
 
 Feedback::Feedback(){
+	
+	this->header.type=FEEDBACK;
 	this->manual_time=0;
 	this->before_time=0;
 	this->after_time=0;
@@ -617,6 +620,20 @@ std::vector<uint8_t> Feedback::toBinary() const
 	} else {
 		data.push_back(0);
 	}
+	
+	data.push_back(manual_runs.size());
+	if(manual_runs.size()){
+		for(auto manual_run: manual_runs){
+			int timestamp = std::get<0>(manual_run);
+			uint16_t val = std::get<1>(manual_run);
+			data.push_back(timestamp & 0xFF);
+			data.push_back((timestamp >> 8) & 0xFF);
+			data.push_back((timestamp >> 16) & 0xFF);
+			data.push_back((timestamp >> 24) & 0xFF);
+			data.push_back(val & 0xFF);
+			data.push_back((val >> 8) & 0xFF);
+		}
+	}
 
 	//this->header.content_length = data.size();
 	putSizeIntoData(data);
@@ -647,14 +664,25 @@ bool Feedback::fromBinary(const std::vector<uint8_t> &data){
 				int offset = HEADER_SIZE+8;
 				for(int i = 0; i < prgm_count; i++){
 					for(int j = 0; j < zone_count; j++){
-						zone_runs[i][j].voltage = data[offset + (i * zone_count + j)*5]/5.0f;
-						zone_runs[i][j].current = data[offset + (i * zone_count + j)*5 + 1]/100.0f;
-						zone_runs[i][j].flow = data[offset + (i * zone_count + j)*5 + 2];
-						zone_runs[i][j].duration = data[offset + (i * zone_count + j)*5 + 3];
-						zone_runs[i][j].run = (bool) data[offset + (i * zone_count + j)*5 + 4];
+						zone_runs[i][j].voltage = data[offset + (i * zone_count + j)*6]/5.0f;
+						zone_runs[i][j].xfmr_voltage = data[offset + (i * zone_count + j)*6 + 1]/5.0f;
+						zone_runs[i][j].current = data[offset + (i * zone_count + j)*6+ 2]/100.0f;
+						zone_runs[i][j].flow = data[offset + (i * zone_count + j)*6 + 3];
+						zone_runs[i][j].duration = data[offset + (i * zone_count + j)*6 + 4];
+						zone_runs[i][j].run = (bool) data[offset + (i * zone_count + j)*6 + 5];
 					}
 				}
-
+				offset += prgm_count * zone_count * 6;
+				int manual_count = data[offset];
+				offset++;
+				manual_runs.resize(manual_count);
+				for(int i = 0 ; i < manual_count; i++){
+					int timestamp = data[offset] | (data[offset+1] << 8) | (data[offset+2] << 16) | (data[offset+3] << 24);
+					uint16_t val = data[offset+4] | (data[offset+5] << 8);
+					offset += 6;
+					manual_runs[i] = std::make_tuple(timestamp, val);
+				}
+				std::cout << "SIZE: ================================" << data.size() << std::endl;
 				return true;
 			} else return false;
 		} else return false;

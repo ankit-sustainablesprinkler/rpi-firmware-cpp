@@ -201,7 +201,8 @@ public:
 	uint16_t before_time;
 	uint16_t manual_time;
 	uint16_t after_time;
-	std::vector<std::vector<feedback_log_point_t>> zone_runs;	
+	std::vector<std::vector<feedback_log_point_t>> zone_runs;
+	std::vector<std::tuple<int, uint16_t>> manual_runs;
 };
 
 class Firmware

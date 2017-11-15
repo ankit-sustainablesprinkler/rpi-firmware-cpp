@@ -125,6 +125,39 @@ bool saveConfig(const bin_protocol::Config &config)
 	return false;
 }
 
+bool getFlowConfig(bin_protocol::FlowConfiguration &flow_config)
+{
+	
+	std::ifstream file(FLOW_CONFIG_FILE);//, std::ios::binary|std::ios::ate);
+	if(file.is_open()){
+		
+		std::string str;
+		if(std::getline(file, str)){
+			std::vector<uint8_t> data;
+			base64_decode(data, str);
+			if(flow_config.fromBinary(data))return true;
+		}
+	}
+	return false;
+}
+
+bool saveFlowConfig(const bin_protocol::FlowConfiguration &flow_config)
+{
+	std::ofstream file(FLOW_CONFIG_FILE, std::ios::out);// | std::ofstream::binary);
+	if(file.is_open()){
+		auto bin_data = flow_config.toBinary();
+		std::string str;
+		base64_encode(bin_data, str);
+		file << str;
+		file.flush();
+		//std::ostream_iterator<char> osi{file};
+		//std::copy(bin_data.begin(),bin_data.end(),osi);
+		file.close();
+		return true;
+	}
+	return false;
+}
+
 bool getSchedule(bin_protocol::Schedule &schedule)
 {
 	std::ifstream file(SCHEDULE_FILE);//, std::ios::binary|std::ios::ate);
@@ -181,10 +214,12 @@ bin_protocol::Heartbeat getHeartbeat(std::string extra_content)
 	getSchedule(schedule);
 	bin_protocol::Config config;
 	getConfig(config);
+	bin_protocol::FlowConfiguration flow_config;
+	getFlowConfig(flow_config);
 	int temp = (int) getTemperature();
 	//TODO modem stuff.
 	std::string state = getRelayState() ? "close" : "open";
-	return bin_protocol::Heartbeat(header, up_time, schedule.ID, config.ID, temp, 0, state, extra_content);
+	return bin_protocol::Heartbeat(header, up_time, schedule.ID, config.ID, temp, 0, state, extra_content, flow_config.ID);
 }
 
 bool getRelayState()

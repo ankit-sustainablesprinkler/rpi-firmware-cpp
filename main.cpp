@@ -235,6 +235,11 @@ int main(int argc, char **argv)
 					s3state.feedback[!s3state.var.current_feedback].header = header;
 					message_string = s3state.feedback[!s3state.var.current_feedback].toBinary();
 					//base64_encode(s3state.feedback[!s3state.var.current_feedback].toBinary(), message_string);
+				} else if(flow_feedback_ready){
+					auto header = getHeader(bin_protocol::FLOW);
+					header.timestamp = s3state.var.previous_flow_feedback_time;
+					s3state.flow_feedback[!s3state.var.current_flow_feedback].header = header;
+					message_string = s3state.flow_feedback[!s3state.var.current_flow_feedback].toBinary();
 				} else {
 					
 					Heartbeat heartbeat = getHeartbeat(extra_content);
@@ -245,6 +250,9 @@ int main(int argc, char **argv)
 			}
 
 			state_saveState(s3state);
+
+			//cout << flow_feedback_ready << "  " << feedback_ready << endl;
+
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 	}
@@ -279,6 +287,13 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 			}
 		}
 	}
+
+	if(!s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp){
+		s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp = midnight;
+	}
+	if(!s3state.feedback[s3state.var.current_feedback].header.timestamp){
+		s3state.feedback[s3state.var.current_feedback].header.timestamp = midnight;
+	}
 	
 	//check state against schedule to see if relay needs to open or close
 	
@@ -312,6 +327,20 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 		for(int i = 0; i < schedule.zone_duration.size(); i++){
 			s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
 		}
+	}
+	//cout << "WHAT?? " << s3state.flow_feedback[s3state.var.current_flow_feedback].samples.size() << endl;
+	if(s3state.var.current_flow_feedback_time != midnight) //roll s3state.flow_feedback to next day
+	{
+		cout << "New s3state.flow_feedback log" << endl;
+		if(s3state.var.current_flow_feedback_time){
+			cout << "Flow Feedback ready" << endl;
+			s3state.var.current_flow_feedback = !s3state.var.current_flow_feedback; // alternate s3state.feedback logs
+			flow_feedback_ready = true;
+		}
+		s3state.var.previous_flow_feedback_time = s3state.var.current_flow_feedback_time;
+		s3state.var.current_flow_feedback_time = midnight;
+		s3state.flow_feedback[s3state.var.current_flow_feedback].samples.clear();
+		s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp = midnight;
 	}
 	
 

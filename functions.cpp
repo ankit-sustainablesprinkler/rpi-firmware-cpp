@@ -316,18 +316,29 @@ bool handleHBResponse(const std::string &response, int &type)
 					}
 					break;
 				}
+				case bin_protocol::FLOW_CONFIG:{
+					bin_protocol::FlowConfiguration flow_config;
+					if(flow_config.fromBinary(data)){
+						result = true;
+						setSystemTime(flow_config.header.timestamp);
+						std::cout << "SAVING FLOW CONFIG" << std::endl;
+						saveFlowConfig(flow_config);
+					}
+					break;
+				}
 				case bin_protocol::FIRMWARE:{
 					
 					bin_protocol::Firmware firmware;
 					char* firmware_data = NULL;
 					int firmware_size;
 					if(firmware.fromBinary(data, firmware_data, firmware_size)){
+						std::cout << "DONE!" << std::endl;
 						std::ofstream new_firmware("s3-main-new.gz", std::ofstream::binary);
 						new_firmware.write(firmware_data, firmware_size);
 						new_firmware.flush();
 						new_firmware.close();
 						auto md5_string = runCommand("md5sum s3-main-new.gz");
-						std::stringstream converter(md5_string.substr(16));
+						std::stringstream converter(md5_string.substr(0,16));
 						uint64_t md5_64;
 						converter >> std::hex >> md5_64;
 						if(firmware.md5_64 == md5_64){

@@ -10,6 +10,7 @@
 #include <wiringPi.h>
 #include <lcm/lcm-cpp.hpp>
 #include <queue>
+#include <cstdio>
 
 #include "sensor_t.hpp"
 #include "base64.h"
@@ -120,8 +121,8 @@ Handler handlerObject;
 
 int main(int argc, char **argv)
 {
-	//try to lock the pid file
-	int pid_file = open("/tmp/s3-schedule.pid", O_CREAT | O_RDWR, 666);
+	int pid_file = open(PID_FILE, O_CREAT | O_RDWR, 666);
+	//try to lock the pid file	
 	int rc = flock(pid_file, LOCK_EX | LOCK_NB); //Linux kernel will allways remove this lock if the process exits for some unknown reason.
 	if(rc && EWOULDBLOCK == errno) {
 		// another instance is running
@@ -351,12 +352,25 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 
 	if(state_changed){
 		cout << "State changed from " << s3state.var.previous_state.type << " to " << state.type << endl;
+		switch(state.type){
+			case BEFORE:
+			case AFTER:
+			{
+				ofstream ota_file(OTA_SYNC_FILE);
+				if(ota_file.is_open()){
+					ota_file.close();
+				}
+				break;
+			}
+		}
 		switch(s3state.var.previous_state.type){
 			case BEFORE:
 				s3state.feedback[s3state.var.current_feedback].before_time = sensor::volt_on_time;
+				remove(OTA_SYNC_FILE);
 				break;
 			case AFTER:
 				s3state.feedback[s3state.var.current_feedback].after_time = sensor::volt_on_time;
+				remove(OTA_SYNC_FILE);
 				break;
 			case MANUAL:
 				cout << "Manual state: " << sensor::curr_on_time << endl;

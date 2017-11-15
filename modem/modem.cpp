@@ -785,7 +785,24 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 			message.response_headers = data.substr(data.find("\r\n") + 2, data.find("\r\n\r\n") - data.find("\r\n") - 2);
 			size_t index = data.find("\r\n\r\n");
 			if(index > 0){
-				message.response_messageBody = data.substr(index + 4);
+				index += 4;
+				if(data.find("Transfer-Encoding: chunked") > 0){
+					std::cout << "Receiving Chunked data" << std::endl;
+					std::string delimiter = "\r\n";
+					size_t pos = index, prev_pos = index;
+					std::string token;
+					while ((pos = data.find(delimiter, prev_pos+1)) != std::string::npos) {
+						token = data.substr(prev_pos, pos-prev_pos);
+						int len = std::stoul(token, nullptr, 16);
+						pos += delimiter.length();
+						message.response_messageBody += data.substr(pos, len);
+						pos += len;
+						pos += delimiter.length();
+						prev_pos = pos;
+					}
+				} else {
+					message.response_messageBody = data.substr(index);
+				}
 			}
 		} else {
 			message.statusCode = 502;

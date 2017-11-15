@@ -1,6 +1,7 @@
 #ifndef SENSOR_GLOBAL
 #define SENSOR_GLOBAL
 #include "moving_average.h"
+#include "state.h"
 
 #include <ctime>
 
@@ -17,7 +18,7 @@ void resetCurrent();
 void resetVoltage();
 void resetFlow();
 
-void sensorRead();
+void sensorRead(s3state_t &state);
 
 }
 

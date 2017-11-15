@@ -25,6 +25,7 @@ time_t volt_on_time = 0, curr_on_time = 0, flow_on_time = 0;
 time_t volt_on_time_prev = 0, curr_on_time_prev = 0, flow_on_time_prev = 0;
 
 MovingAverage<float> flow_average(50);
+MovingAverage<float> per_minute_flow(60);
 MovingAverage<float> current_average(50);
 MovingAverage<float> voltage_average(50);
 MovingAverage<float> transformer_voltage_average(120);
@@ -37,7 +38,7 @@ void sensorInit()
 	digitalWrite(PIN_FAULT_CLEAR, HIGH);
 }
 
-void sensorRead()
+void sensorRead(s3state_t &state)
 {
 	float voltage, solenoid_voltage, solenoid_current, flow;
 	meterGetValues(voltage, solenoid_voltage, solenoid_current);
@@ -47,6 +48,7 @@ void sensorRead()
 	flowGet(flow);
 	//std::cout << flow << std::endl;
 	flow_average.addValue(flow);
+	per_minute_flow.addValue(flow);
 	//std::cout << "Voltage: " << solenoid_voltage << ", Current: " << solenoid_current << ", Flow: " << flow << std::endl;
 	//std::cout << "Voltage avg: " << voltage_average.getAverage() << ", Current avg: " << current_average.getAverage()
 	//<< ", Flow avg: " << flow_average.getAverage() << std::endl;
@@ -57,20 +59,16 @@ void sensorRead()
 	//voltage = voltage * voltage_count++ + new
 	
 	time_t now = time(nullptr);
-		
-	if(now - last_log > 60){
+	
+	//per minute logging
+	if(now - last_log >= 60){
 		last_log = now;
-		float flow = flow_average.getAverage();
-		if(flow > FLOW_THRESHOLD || solenoid_voltage > VOLTAGE_THRESHOLD || solenoid_current > CURRENT_THRESHOLD){
-		//	sensor.voltage = solenoid_voltage;
-		//	sensor.current = solenoid_current;
-		//	sensor.flow = flow;
-		//	cout << "SENSOR " << std::dec << solenoid_voltage << "," << std::dec << solenoid_current << "," << std::dec << flow << endl;
-		//	lcm.publish("SENSOR", &sensor);
-		//	while(!logSensor(sensor));
-
-
+		if(flow > 0.01){
+			std::cout << "Logging flow " << per_minute_flow.getAverage() << std::endl;
+			state.flow_feedback[state.var.current_flow_feedback].samples.push_back(std::make_tuple(now, per_minute_flow.getAverage()));
+			std::cout << "Size: " << state.flow_feedback[state.var.current_flow_feedback].samples.size() << std::endl;
 		}
+		per_minute_flow.reset();
 	}
 	
 	if(voltage_state){

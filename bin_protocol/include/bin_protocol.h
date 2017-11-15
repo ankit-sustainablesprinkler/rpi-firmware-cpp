@@ -240,6 +240,7 @@ public:
 	FlowFeedback();
 	FlowFeedback(const Header &header, const std::vector<std::tuple<int32_t, float>> &samples);
 	std::vector<uint8_t> toBinary() const;
+	bool fromBinary(const std::vector<uint8_t> &data);
 	Header header;
 	std::vector<std::tuple<int32_t, float>> samples;
 };
@@ -271,8 +272,9 @@ class FlowConfiguration
 public:
 	FlowConfiguration();
 	bool fromBinary(const std::vector<uint8_t> &data);
+	std::vector<uint8_t> toBinary() const;
 	Header header;
-	uint8_t id;
+	uint8_t ID;
 	float offset;
 	float K;
 	uint8_t flow_thr_high;

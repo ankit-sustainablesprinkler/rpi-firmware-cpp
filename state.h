@@ -6,6 +6,7 @@
 #define STATE_FILE_PREFIX "/home/pi/firmware/main/etc/"
 #define STATE_FILE STATE_FILE_PREFIX "state"
 #define FEEDBACK_FILE STATE_FILE_PREFIX "feedback"
+#define FLOW_FEEDBACK_FILE STATE_FILE_PREFIX "flow_feedback"
 
 namespace bin_protocol{
 	class Feedback;
@@ -15,8 +16,11 @@ struct s3state_var_t {
 	time_t last_heartbeat_time = 0;
 	time_t current_feedback_time = 0;
 	time_t previous_feedback_time = 0;
+	time_t current_flow_feedback_time = 0;
+	time_t previous_flow_feedback_time = 0;
 	run_state_t previous_state;
 	int current_feedback = 0;
+	int current_flow_feedback = 0;
 	bool voltage_state = false;
 	bool current_state = false;
 	bool voltage_state_prev = false;
@@ -26,6 +30,7 @@ struct s3state_var_t {
 struct s3state_t {
 	s3state_var_t var;
 	bin_protocol::Feedback feedback[2]; // keep two feedback logs so we can continue logging while waiting for upload.
+	bin_protocol::FlowFeedback flow_feedback[2];
 };
 
 bool state_getState(s3state_t &state);

@@ -60,7 +60,7 @@ Modem modem;
 
 Schedule new_schedule;
 Config new_Config;
-bool schedule_ready = false, config_ready = false, firstBoot = true, feedback_ready = false, heartbeat_sent = false; // Added firstBoot - Anthony
+bool schedule_ready = false, config_ready = false, firstBoot = true, feedback_ready = false, flow_feedback_ready = false, heartbeat_sent = false; // Added firstBoot - Anthony
 
 struct sample_t{
 	float current;
@@ -148,6 +148,8 @@ int main(int argc, char **argv)
 		lcm.subscribe("SENSOR", &Handler::handleMessage, &handlerObject);
 		
 		state_getState(s3state);
+		s3state.flow_feedback[0].header.type = bin_protocol::FLOW;
+		s3state.flow_feedback[1].header.type = bin_protocol::FLOW;
 
 		int modem_fail_count = 0;
 		modem.init();
@@ -221,7 +223,7 @@ int main(int argc, char **argv)
 
 			modem_update_mutex.unlock();
 
-			sensor::sensorRead();
+			sensor::sensorRead(s3state);
 			if(schedule.isValid()) runSchedule(schedule, config);
 
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
@@ -517,8 +519,10 @@ void modemThread(bool RTC_fitted)
 				cout << e.what();
 #endif
 			} catch (...) { }
+			//this_thread::sleep_for(chrono::seconds(10));
 			if(error == Modem::NONE){
 				if(msg_type == bin_protocol::FEEDBACK) feedback_ready = false;// reset feedback ready
+				if(msg_type == bin_protocol::FLOW) flow_feedback_ready = false;// reset flow feedback ready
 				modem_fail_count = 0;
 				int type;
 				modem_IO_mutex.lock();

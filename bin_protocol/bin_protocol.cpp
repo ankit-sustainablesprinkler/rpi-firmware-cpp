@@ -740,7 +740,6 @@ FlowFeedback::FlowFeedback(const Header &header, const std::vector<std::tuple<in
 std::vector<uint8_t> FlowFeedback::toBinary() const
 {
 	std::vector<uint8_t> data(this->header.toBinary());
-
 	float max_flow = 0.0f;
 	uint16_t count = 0;
 	for(auto sample : this->samples){
@@ -779,6 +778,29 @@ std::vector<uint8_t> FlowFeedback::toBinary() const
 	putSizeIntoData(data);
 	calculateCRC(data);
 	return data;
+}
+
+bool FlowFeedback::fromBinary(const std::vector<uint8_t> &data)
+{
+	if(isValidData(data)){
+		if(getSizefromBinary(data) == data.size() && data.size() == HEADER_SIZE+7){
+			if(this->header.fromBinary(data))
+			{
+				this->samples.clear();
+				float max_flow;
+				*((int *)(&max_flow)) = data[HEADER_SIZE] | (data[HEADER_SIZE+1] << 8) | (data[HEADER_SIZE+2] << 16) | (data[HEADER_SIZE+3] << 24);
+				int count = data[HEADER_SIZE+4] | (data[HEADER_SIZE+5] << 8);
+				int offset = HEADER_SIZE + 6;
+				for(int i = 0; i<count; i++){
+					int val = data[offset++] | (data[offset++] << 8) | (data[offset++] << 16) | (data[offset++] << 24);
+					int timestamp = val & 0x1FFFF + this->header.timestamp;
+					float flow = ((val >> 17)&0x7FFF) * max_flow;
+					this->samples.push_back(std::make_tuple(timestamp, flow));
+				}
+				return true;
+			}
+		}
+	}
 }
 
 AlertFeedback::AlertFeedback(){
@@ -858,7 +880,7 @@ bool FlowConfiguration::fromBinary(const std::vector<uint8_t> &data)
 		if(getSizefromBinary(data) == data.size()){
 			if(this->header.fromBinary(data))
 			{
-				this->id = data[HEADER_SIZE];
+				this->ID = data[HEADER_SIZE];
 				memcpy(&this->offset, &data[HEADER_SIZE + 1], 4);
 				memcpy(&this->K, &data[HEADER_SIZE + 5], 4);
 				this->flow_thr_high = data[HEADER_SIZE+9];
@@ -870,6 +892,36 @@ bool FlowConfiguration::fromBinary(const std::vector<uint8_t> &data)
 			}
 		}
 	}
+}
+
+std::vector<uint8_t> FlowConfiguration::toBinary() const
+{
+	std::vector<uint8_t> data(this->header.toBinary());
+	data.push_back(this->ID);
+	int val = *((int*)(&this->offset));
+	data.push_back(val & 0xFF);
+	data.push_back((val >> 8) & 0xFF);
+	data.push_back((val >> 16) & 0xFF);
+	data.push_back((val >> 24) & 0xFF);
+	val = *((int*)(&this->K));
+	data.push_back(val & 0xFF);
+	data.push_back((val >> 8) & 0xFF);
+	data.push_back((val >> 16) & 0xFF);
+	data.push_back((val >> 24) & 0xFF);
+	data.push_back(this->flow_thr_high);
+	data.push_back(this->flow_thr_low);
+	val = *((int*)(&this->flow_thr_min));
+	data.push_back(val & 0xFF);
+	data.push_back((val >> 8) & 0xFF);
+	data.push_back((val >> 16) & 0xFF);
+	data.push_back((val >> 24) & 0xFF);
+	data.push_back(this->flow_interval & 0xFF);
+	data.push_back((this->flow_interval >> 8) & 0xFF);
+	data.push_back(this->flow_count_thr);
+
+	putSizeIntoData(data);
+	calculateCRC(data);
+	return data;
 }
 
 CalibrationResult::CalibrationResult()

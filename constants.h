@@ -31,11 +31,14 @@
 #define FILE_PREFIX "/home/pi/firmware/main/logs/"
 #define SYS_FILE_PREFIX "/home/pi/firmware/main/etc/"
 #define CONFIG_FILE SYS_FILE_PREFIX "config"
+#define FLOW_CONFIG_FILE SYS_FILE_PREFIX "flow_config"
 #define SCHEDULE_FILE SYS_FILE_PREFIX "schedule"
 #define HISTORY_FILE FILE_PREFIX "history.txt"
 #define HEARTBEAT_FAIL_COUNTER FILE_PREFIX "fail_count.txt"
 #define MODEM_LOG FILE_PREFIX "modem_log.txt"
 #define SYSTEM_LOG FILE_PREFIX "system_log.txt"
+#define PID_FILE "/tmp/s3-schedule.pid"
+#define OTA_SYNC_FILE "/tmp/ota-sync"
 
 #define PIN_MODEM_DTR 25
 #define PIN_MODEM_RTS 27

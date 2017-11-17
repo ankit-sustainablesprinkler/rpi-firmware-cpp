@@ -786,7 +786,7 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 			size_t index = data.find("\r\n\r\n");
 			if(index > 0){
 				index += 4;
-				if(data.find("Transfer-Encoding: chunked") > 0){
+				if(data.find("Transfer-Encoding: chunked") != std::string::npos){
 					std::cout << "Receiving Chunked data" << std::endl;
 					std::string delimiter = "\r\n";
 					size_t pos = index, prev_pos = index;

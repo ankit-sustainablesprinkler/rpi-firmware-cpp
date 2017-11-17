@@ -721,14 +721,13 @@ bool Firmware::fromBinary(const std::vector<uint8_t> &data, char* &firmware, int
 			}
 			firmware = new char[size];
 			std::copy(data.begin()+HEADER_SIZE+8,data.end(), firmware);
-			std::cout << (int)firmware << "  " << size << std::endl;
 			return true;
 		}
 	}
 }
 
 FlowFeedback::FlowFeedback(){
-
+	this->header.type = FLOW;
 }
 
 FlowFeedback::FlowFeedback(const Header &header, const std::vector<std::tuple<int32_t, float>> &samples){

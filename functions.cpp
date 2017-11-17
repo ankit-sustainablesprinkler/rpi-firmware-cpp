@@ -332,25 +332,22 @@ bool handleHBResponse(const std::string &response, int &type)
 					char* firmware_data = NULL;
 					int firmware_size;
 					if(firmware.fromBinary(data, firmware_data, firmware_size)){
-						std::cout << "DONE!" << std::endl;
-						std::ofstream new_firmware("s3-main-new.gz", std::ofstream::binary);
+						std::ofstream new_firmware(FIRMWARE_FILE ".gz", std::ofstream::binary);
 						new_firmware.write(firmware_data, firmware_size);
 						new_firmware.flush();
 						new_firmware.close();
-						auto md5_string = runCommand("md5sum s3-main-new.gz");
+						auto md5_string = runCommand("md5sum " FIRMWARE_FILE ".gz");
 						std::stringstream converter(md5_string.substr(0,16));
 						uint64_t md5_64;
 						converter >> std::hex >> md5_64;
 						if(firmware.md5_64 == md5_64){
 							std::cout << "Valid firmware" << std::endl;
-							std::string result = runCommand("gunzip -f s3-main-new.gz");
+							std::string result = runCommand("gunzip -f " FIRMWARE_FILE ".gz");
 							std::cout << result << std::endl;
-							result = runCommand("chmod 755 s3-main-new");
+							result = runCommand("chmod 755 " FIRMWARE_FILE);
 							std::cout << result << std::endl;
 						}
-
 					}
-
 					delete[] firmware_data;
 					firmware_data = NULL;
 					break;

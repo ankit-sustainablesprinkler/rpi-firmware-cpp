@@ -129,6 +129,8 @@ int main(int argc, char **argv)
 		cout << "Another instance is currently running. Stop it first before restarting." << endl;
 	} else {
 		// this is the first instance
+
+		remove(OTA_SYNC_FILE);
 		wiringPiSetup();
 		switch_init();
 		pinMode(PIN_WDT_RESET, OUTPUT);
@@ -385,6 +387,7 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 			case BEFORE:
 			case AFTER:
 			{
+				cout << "Allowing OTA" << endl;
 				ofstream ota_file(OTA_SYNC_FILE);
 				if(ota_file.is_open()){
 					ota_file.close();

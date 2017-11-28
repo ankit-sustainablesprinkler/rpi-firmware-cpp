@@ -484,10 +484,11 @@ Config::Config()
 	this->station_delay = 0;
 	this->remain_closed = 0;
 	this->flow_fitted = 0;
+	this->pump_fitted = false;
 }
 
 Config::Config(Header header, int ID, int manual_start_time, int manual_end_time, int heartbeat_period, int16_t system_time_offset,\
-               int station_delay, bool remain_closed, bool flow_fitted, uint8_t time_drift_thr)
+               int station_delay, bool remain_closed, bool flow_fitted, bool pump_fitted, uint8_t time_drift_thr)
 {
 	this->header = header;
 	this->ID = ID;
@@ -498,6 +499,7 @@ Config::Config(Header header, int ID, int manual_start_time, int manual_end_time
 	this->station_delay = station_delay;
 	this->remain_closed = remain_closed;
 	this->flow_fitted = flow_fitted;
+	this->pump_fitted = pump_fitted;
 	this->time_drift_thr = time_drift_thr;
 
 
@@ -517,7 +519,7 @@ std::vector<uint8_t> Config::toBinary() const
 	data.push_back(this->system_time_offset & 0xFF);
 	data.push_back((this->system_time_offset >> 8) & 0xFF);
 	data.push_back(this->station_delay & 0xFF);
-	data.push_back((this->station_delay >> 8) & 0x3F | (this->remain_closed ? 0x80 : 0x00) | (this->flow_fitted ? 0x40 : 0x00));
+	data.push_back((this->station_delay >> 8) & 0x1F | (this->remain_closed ? 0x80 : 0x00) | (this->flow_fitted ? 0x40 : 0x00) | (this->pump_fitted ? 0x20 : 0x00));
 	data.push_back(this->time_drift_thr);
 
 	//this->header.content_length = data.size();
@@ -543,9 +545,10 @@ bool Config::fromBinary(const std::vector<uint8_t> &data)
 				{
 					this->system_time_offset -= 0x10000  #since python does not have a int16_t (or any explicit type), we have to manualy calculate it like a savage
 				}*/
-				this->station_delay = (data[HEADER_SIZE+9] | (data[HEADER_SIZE+10] << 8)) & 0x3FFF; // remove most significant bit because it is for the remain_closed
+				this->station_delay = (data[HEADER_SIZE+9] | (data[HEADER_SIZE+10] << 8)) & 0x1FFF; // remove most significant bit because it is for the remain_closed
 				this->remain_closed = (data[HEADER_SIZE + 10] & 0x80) != 0x00;
 				this->flow_fitted = (data[HEADER_SIZE + 10] & 0x40) != 0x00;
+				this->pump_fitted = (data[HEADER_SIZE + 10] & 0x20) != 0x00;
 				this->time_drift_thr = data[HEADER_SIZE + 11];
 				return true;
 			} else return false;
@@ -782,7 +785,7 @@ std::vector<uint8_t> FlowFeedback::toBinary() const
 bool FlowFeedback::fromBinary(const std::vector<uint8_t> &data)
 {
 	if(isValidData(data)){
-		if(getSizefromBinary(data) == data.size() && data.size() == HEADER_SIZE+7){
+		if(getSizefromBinary(data) == data.size()){
 			if(this->header.fromBinary(data))
 			{
 				this->samples.clear();
@@ -818,9 +821,10 @@ std::vector<uint8_t> AlertFeedback::toBinary() const
 	data.push_back(this->alerts.size()&0xFF);
 	data.push_back((this->alerts.size()>>8)&0xFF);
 	for(auto alert : this->alerts){
-		char type = std::get<1>(alert);
 		int32_t t = std::get<0>(alert);
+		char type = std::get<1>(alert);
 		std::string s = std::get<2>(alert);
+		//std::cout << t << " " << type << " " << s << std::endl;
 		data.push_back(t & 0xFF);
 		data.push_back((t >> 8) & 0xFF);
 		data.push_back((t >> 16) & 0xFF);

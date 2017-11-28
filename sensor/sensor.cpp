@@ -375,6 +375,11 @@ bool flowGet(float &frequency)
 	//std::cout << (int)rx[1] << ":" << (int)rx[2] << ":" << (int)rx[3] << std::endl;
 	//std::cout << ((int)rx[1] | (int)rx[2] << 8) << std::endl;
 	frequency = ((int)rx[1] | (int)rx[2] << 8)/(rx[3]+1.0f);
+	/*std::cout << "FLOW_VALUES: ";
+	for(int i = 0; i < 4; i++){
+		std::cout << std::hex << (int)rx[i] << " ";
+	}*/
+	//std::cout << frequency << std::endl;
 
 	return true;
 }

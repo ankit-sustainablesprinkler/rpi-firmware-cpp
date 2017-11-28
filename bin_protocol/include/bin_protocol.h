@@ -252,6 +252,7 @@ public:
 	AlertFeedback();
 	AlertFeedback(const Header &header, const std::vector<std::tuple<int32_t, char, std::string>> &alerts);
 	std::vector<uint8_t> toBinary() const;
+	bool fromBinary(const std::vector<uint8_t> &data);
 	Header header;
 	std::vector<std::tuple<int32_t, char, std::string>> alerts;
 };

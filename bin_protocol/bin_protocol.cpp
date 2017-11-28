@@ -838,6 +838,30 @@ std::vector<uint8_t> AlertFeedback::toBinary() const
 	return data;
 }
 
+bool AlertFeedback::fromBinary(const std::vector<uint8_t> &data)
+{
+	if(isValidData(data)){
+		if(getSizefromBinary(data) == data.size()){
+			if(this->header.fromBinary(data))
+			{
+				this->alerts.clear();
+				uint16_t size = data[HEADER_SIZE] | (data[HEADER_SIZE + 1] << 8);
+				int offset = HEADER_SIZE + 2;
+				for(int i = 0; i < size; i++){
+					int timestamp = data[offset++] | (data[offset++] << 8) | (data[offset++] << 16) | (data[offset++] << 24);
+					char type = data[offset++];
+					int str_len = data[offset++];
+					std::string str(data.begin() + offset, data.begin() + offset + str_len);
+					offset += str_len;
+					this->alerts.push_back(std::make_tuple(timestamp, type, str));
+
+				}
+				return true;
+			}
+		}
+	}
+}
+
 CalibrationSetup::CalibrationSetup(){
 
 }

@@ -43,7 +43,7 @@ bool isWateringNeeded(const run_state_t &state, const bin_protocol::Schedule &sc
 	time_t effective_date = schedule.effective_date;
 	if(manual_start_time <= now && now < manual_end_time){ //Manual run period so swtich relay on
 		//std::cout << "Manual2" << std::endl;
-		result = !config.remain_closed;// mechanical systems need to open during manual water. Also Alex reversed this for some reason.
+		result = config.remain_closed;// mechanical systems need to open during manual water.
 	}else if(now >= effective_date)  //TODO move this to normal run so it does not effect the start times for custom programs
 		result = isTimeToWater(state, schedule, config, now, midnight);
 	return result;

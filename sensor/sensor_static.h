@@ -18,7 +18,7 @@ void resetCurrent();
 void resetVoltage();
 void resetFlow();
 
-void sensorRead(s3state_t &state);
+void sensorRead(s3state_t &state, bin_protocol::Schedule &schedule, bin_protocol::Config &config, bin_protocol::FlowConfiguration &FlowConfiguration);
 
 }
 

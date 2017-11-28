@@ -7,6 +7,7 @@
 #define STATE_FILE STATE_FILE_PREFIX "state"
 #define FEEDBACK_FILE STATE_FILE_PREFIX "feedback"
 #define FLOW_FEEDBACK_FILE STATE_FILE_PREFIX "flow_feedback"
+#define ALERT_FEEDBACK_FILE STATE_FILE_PREFIX "alert_feedback"
 
 namespace bin_protocol{
 	class Feedback;
@@ -25,12 +26,19 @@ struct s3state_var_t {
 	bool current_state = false;
 	bool voltage_state_prev = false;
 	bool current_state_prev = false;
+
+	//sensor state
+	bool blocked_pump_detected;
+	time_t blocked_pump_time;
+	bool unscheduled_flow;
+	time_t unscheduled_flow_time;
 };
 
 struct s3state_t {
 	s3state_var_t var;
 	bin_protocol::Feedback feedback[2]; // keep two feedback logs so we can continue logging while waiting for upload.
 	bin_protocol::FlowFeedback flow_feedback[2];
+	bin_protocol::AlertFeedback alert_feedback;
 };
 
 bool state_getState(s3state_t &state);

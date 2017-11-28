@@ -38,17 +38,35 @@ void sensorInit()
 	digitalWrite(PIN_FAULT_CLEAR, HIGH);
 }
 
-void sensorRead(s3state_t &state)
+void sensorRead(s3state_t &state, bin_protocol::Schedule &schedule, bin_protocol::Config &config, bin_protocol::FlowConfiguration &flow_configuration)
 {
 	float voltage, solenoid_voltage, solenoid_current, flow;
 	meterGetValues(voltage, solenoid_voltage, solenoid_current);
 	current_average.addValue(solenoid_current);
 	voltage_average.addValue(solenoid_voltage);
 	transformer_voltage_average.addValue(voltage);	
-	flowGet(flow);
-	//std::cout << flow << std::endl;
-	flow_average.addValue(flow);
-	per_minute_flow.addValue(flow);
+	if(config.flow_fitted){
+		if(flowGet(flow)){
+		//std::cout << flow << std::endl;
+			
+			static int blocked_pump_detected_count = 0;
+			flow_average.addValue(flow);
+			per_minute_flow.addValue(flow);
+			if(flow < flow_configuration.flow_thr_min && solenoid_current > CURRENT_THRESHOLD){
+				if(!state.var.blocked_pump_detected){
+					blocked_pump_detected_count ++;
+					if(blocked_pump_detected_count > 10){
+						std::cout << "Blocked pump detected" << std::endl;
+						state.var.blocked_pump_time = time(NULL);
+						state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.blocked_pump_time, 'P',""));
+						state.var.blocked_pump_detected = true;
+					}
+				}
+			} else {
+				blocked_pump_detected_count = 0;
+			}
+		}
+	}
 	//std::cout << "Voltage: " << solenoid_voltage << ", Current: " << solenoid_current << ", Flow: " << flow << std::endl;
 	//std::cout << "Voltage avg: " << voltage_average.getAverage() << ", Current avg: " << current_average.getAverage()
 	//<< ", Flow avg: " << flow_average.getAverage() << std::endl;

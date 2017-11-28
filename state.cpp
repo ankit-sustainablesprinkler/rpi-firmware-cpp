@@ -12,7 +12,7 @@ bool state_getState(s3state_t &state)
 {
 	bool result = false;
 
-	std::ifstream state_file, feedback_file, flow_feedback_file;
+	std::ifstream state_file, feedback_file, flow_feedback_file, alert_feedback_file;
 	state_file.open(STATE_FILE, std::ifstream::binary | std::ifstream::in);
 	if(state_file.is_open()){
 		long begin, end;
@@ -69,6 +69,20 @@ bool state_getState(s3state_t &state)
 	} else {
 		std::cout << "No such file: " << FLOW_FEEDBACK_FILE << std::endl;
 	}
+
+	alert_feedback_file.open(ALERT_FEEDBACK_FILE, std::ifstream::in);
+	if(alert_feedback_file.is_open()){
+		std::string b64_string;
+		if(std::getline(flow_feedback_file, b64_string)){
+			std::vector<uint8_t> data;
+			if(base64_decode(data, b64_string) == BASE64_NO_ERR){
+				result=true;
+				state.alert_feedback.fromBinary(data);
+			}
+		}
+	} else {
+		std::cout << "No such file: " << ALERT_FEEDBACK_FILE << std::endl;
+	}
 	
 	//state.flow_feedback[0].header.type = bin_protocol::FLOW;
 	//state.flow_feedback[1].header.type = bin_protocol::FLOW;
@@ -79,7 +93,7 @@ bool state_saveState(const s3state_t &state)
 {
 	bool result = false;
 	
-	std::ofstream state_file, feedback_file, flow_feedback_file;
+	std::ofstream state_file, feedback_file, flow_feedback_file, alert_feedback_file;
 	state_file.open(STATE_FILE, std::ofstream::binary | std::ifstream::out | std::ifstream::trunc);
 	if(state_file.is_open()){
 		result = true;
@@ -116,6 +130,17 @@ bool state_saveState(const s3state_t &state)
 		flow_feedback_file << b64_string;
 		flow_feedback_file.flush();
 		flow_feedback_file.close();
+	}	
+
+	alert_feedback_file.open(ALERT_FEEDBACK_FILE, std::ifstream::out | std::ifstream::trunc);
+	if(alert_feedback_file.is_open()){
+		result=true;
+		std::string b64_string;
+		std::vector<uint8_t> data = state.alert_feedback.toBinary();
+		base64_encode(data, b64_string);
+		alert_feedback_file << b64_string << std::endl;
+		alert_feedback_file.flush();
+		alert_feedback_file.close();
 	}	
 
 	return result;

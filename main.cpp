@@ -61,7 +61,7 @@ Modem modem;
 
 Schedule new_schedule;
 Config new_Config;
-bool schedule_ready = false, config_ready = false, firstBoot = true, feedback_ready = false, flow_feedback_ready = false, heartbeat_sent = false; // Added firstBoot - Anthony
+bool schedule_ready = false, config_ready = false, flow_config_ready = false, firstBoot = true, feedback_ready = false, flow_feedback_ready = false, heartbeat_sent = false; // Added firstBoot - Anthony
 
 struct sample_t{
 	float current;
@@ -177,9 +177,11 @@ int main(int argc, char **argv)
 		//load config and schedule
 		Schedule schedule;
 		Config config;
+		FlowConfiguration flow_config;
 		bool has_schedule = getSchedule(schedule);
 		cout<< "programs: " << schedule.zone_duration.size() << endl;
 		bool has_config = getConfig(config);
+		bool has_flow_config = getFlowConfig(flow_config);
 		time_t heartbeat_period = HEARTBEAT_MIN_PERIOD;//config.heartbeat_period;
 		if(heartbeat_period < HEARTBEAT_MIN_PERIOD) heartbeat_period = HEARTBEAT_MIN_PERIOD;
 
@@ -223,15 +225,27 @@ int main(int argc, char **argv)
 				}catch(...){}
 				modem_IO_mutex.unlock();
 			}
+			if(flow_config_ready){
+				modem_IO_mutex.lock();
+				try{
+					getFlowConfig(flow_config);
+					flow_config_ready = false;
+					cout << "NEW FLOW CONFIG " << flow_config.ID << endl;
+				}catch(...){}
+				modem_IO_mutex.unlock();
+			}
 
 			modem_update_mutex.unlock();
-
-			sensor::sensorRead(s3state);
+			sensor::sensorRead(s3state, schedule, config, flow_config);
 			if(schedule.isValid()) runSchedule(schedule, config);
 
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
 			if(time(nullptr) - s3state.var.last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
-				if(feedback_ready){
+				if(s3state.alert_feedback.alerts.size() > 0){
+					auto header = getHeader(bin_protocol::ALERT);s3state.alert_feedback.header = header;
+					message_string = s3state.alert_feedback.toBinary();
+					s3state.alert_feedback.alerts.clear();
+				} else if(feedback_ready){
 					auto header = getHeader(bin_protocol::FEEDBACK);
 					header.timestamp = s3state.var.previous_feedback_time;
 					s3state.feedback[!s3state.var.current_feedback].header = header;
@@ -298,9 +312,16 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 	}
 	
 	//check state against schedule to see if relay needs to open or close
-	
 	bool closed = getRelayState();
-	if(isWateringNeeded(state, schedule, config, now, midnight))
+	bool watering_needed = isWateringNeeded(state, schedule, config, now, midnight);
+
+	//dissable irrigation if any fault flags are set
+	if(s3state.var.blocked_pump_detected){
+		watering_needed = false;
+	}
+
+	//Set relay state
+	if(watering_needed)
 	{
 		if(!closed){
 			cout << "close" << endl;
@@ -312,6 +333,8 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 			openRelay();
 		}
 	}
+
+	//Parse feedback
 
 	if(s3state.var.current_feedback_time != midnight) //roll s3state.feedback to next day
 	{
@@ -360,11 +383,11 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 	if(s3state.var.current_state && !s3state.var.current_state_prev){
 		if(state.type == MANUAL){
 			//insert manual run in feedback
-			cout << "Well something is happening..." << endl;
+			cout << "Manual run detected" << endl;
 			s3state.feedback[s3state.var.current_feedback].manual_runs.push_back(make_tuple<int, uint16_t>(now, 0));
+			s3state.alert_feedback.alerts.push_back(make_tuple<int, char, string>(now, 'M', ""));
 			cout << s3state.feedback[s3state.var.current_feedback].manual_runs.size();
 		}
-
 		s3state.var.current_state_prev = s3state.var.current_state;
 	}
 	//current off event
@@ -372,8 +395,9 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 		if(state.type == MANUAL){
 			//insert curr_on_time into last event
 			if(s3state.feedback[s3state.var.current_feedback].manual_runs.size() > 0){
-				cout << "And some other stuff." << endl;
+				cout << "Manual run Ended" << endl;
 				get<1>(s3state.feedback[s3state.var.current_feedback].manual_runs.back()) = (sensor::curr_on_time + 30) / 60;
+				s3state.alert_feedback.alerts.push_back(make_tuple<int, char, string>(now, 'E', "Duration: " + to_string((sensor::curr_on_time + 30) / 60)));
 				sensor::curr_on_time = 0;
 			}
 		}
@@ -394,6 +418,12 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 				}
 				break;
 			}
+			case MANUAL:
+
+				//Clear flags that need to be reset will manual run starts
+				s3state.var.blocked_pump_detected = false;
+
+				break;
 		}
 		switch(s3state.var.previous_state.type){
 			case BEFORE:
@@ -592,6 +622,10 @@ void modemThread(bool RTC_fitted)
 						case Type::SCHEDULE:
 							cout << "READY for SCHEDULE" << endl;
 							schedule_ready = true;
+							break;
+						case Type::FLOW_CONFIG:
+							cout << "READY for FLOW CONFIG" << endl;
+							flow_config_ready = true;
 							break;
 					}
 					modem_update_mutex.unlock();

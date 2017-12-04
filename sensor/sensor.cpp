@@ -365,21 +365,27 @@ static  bool  meter_write (uint8_t  address, uint16_t  data, bool  trace)
 
 bool flowGet(float &frequency)
 {
-	uint8_t rx[4] = {0x02, 0x03, 0x01, 0x00};
+	uint8_t rx[5] = {0x00, 0x02, 0x03, 0x01, 0x00};
 	digitalWrite(14, LOW);
 	usleep(50);
 	digitalWrite(11, LOW);
-	wiringPiSPIDataRW(1, rx, 4);
+	wiringPiSPIDataRW(1, rx, 5);
 	digitalWrite(11, HIGH);
+
+	if(rx[1] != 0x01) return false;
+	if(rx[4] != 0){
+		flowSetSampleSize(1);
+		return false;
+	}
 	
 	//std::cout << (int)rx[1] << ":" << (int)rx[2] << ":" << (int)rx[3] << std::endl;
 	//std::cout << ((int)rx[1] | (int)rx[2] << 8) << std::endl;
-	frequency = ((int)rx[1] | (int)rx[2] << 8)/(rx[3]+1.0f);
+	frequency = ((int)rx[2] | (int)rx[3] << 8)/(rx[4]+1.0f);
 	/*std::cout << "FLOW_VALUES: ";
-	for(int i = 0; i < 4; i++){
+	for(int i = 0; i < 5; i++){
 		std::cout << std::hex << (int)rx[i] << " ";
-	}*/
-	//std::cout << frequency << std::endl;
+	}
+	std::cout << frequency << std::endl;//*/
 
 	return true;
 }

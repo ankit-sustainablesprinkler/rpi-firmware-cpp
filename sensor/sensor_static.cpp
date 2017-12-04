@@ -34,7 +34,7 @@ MovingAverage<float> transformer_voltage_average(120);
 void sensorInit()
 {
 	sensorSetup();
-	flowSetSampleSize(10);
+	flowSetSampleSize(1);
 	digitalWrite(PIN_FAULT_CLEAR, HIGH);
 }
 

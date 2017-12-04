@@ -485,10 +485,13 @@ Config::Config()
 	this->remain_closed = 0;
 	this->flow_fitted = 0;
 	this->pump_fitted = false;
+	this->time_drift_thr = 0;
+	this->use_dst = false;
+	this->current_on_thr = 0;
 }
 
 Config::Config(Header header, int ID, int manual_start_time, int manual_end_time, int heartbeat_period, int16_t system_time_offset,\
-               int station_delay, bool remain_closed, bool flow_fitted, bool pump_fitted, uint8_t time_drift_thr)
+               int station_delay, bool remain_closed, bool flow_fitted, bool pump_fitted, uint8_t time_drift_thr, bool use_dst, uint8_t current_on_thr)
 {
 	this->header = header;
 	this->ID = ID;
@@ -501,6 +504,8 @@ Config::Config(Header header, int ID, int manual_start_time, int manual_end_time
 	this->flow_fitted = flow_fitted;
 	this->pump_fitted = pump_fitted;
 	this->time_drift_thr = time_drift_thr;
+	this->use_dst = use_dst;
+	this->current_on_thr = current_on_thr;
 
 
 }
@@ -519,8 +524,10 @@ std::vector<uint8_t> Config::toBinary() const
 	data.push_back(this->system_time_offset & 0xFF);
 	data.push_back((this->system_time_offset >> 8) & 0xFF);
 	data.push_back(this->station_delay & 0xFF);
-	data.push_back((this->station_delay >> 8) & 0x1F | (this->remain_closed ? 0x80 : 0x00) | (this->flow_fitted ? 0x40 : 0x00) | (this->pump_fitted ? 0x20 : 0x00));
+	data.push_back((this->station_delay >> 8) & 0xFF);
 	data.push_back(this->time_drift_thr);
+	data.push_back((this->remain_closed ? 0x01 : 0x00) | (this->flow_fitted ? 0x02 : 0x00) | (this->pump_fitted ? 0x04 : 0x00));
+	data.push_back(this->current_on_thr & 0xFF);
 
 	//this->header.content_length = data.size();
 	putSizeIntoData(data);
@@ -541,15 +548,13 @@ bool Config::fromBinary(const std::vector<uint8_t> &data)
 				this->manual_end_time = data[HEADER_SIZE+3] | (data[HEADER_SIZE+4] << 8);
 				this->heartbeat_period = data[HEADER_SIZE+5] | (data[HEADER_SIZE+6] << 8);
 				this->system_time_offset = data[HEADER_SIZE+7] | (data[HEADER_SIZE+8] << 8);
-				/*if(this->system_time_offset > 0x7FFF)
-				{
-					this->system_time_offset -= 0x10000  #since python does not have a int16_t (or any explicit type), we have to manualy calculate it like a savage
-				}*/
-				this->station_delay = (data[HEADER_SIZE+9] | (data[HEADER_SIZE+10] << 8)) & 0x1FFF; // remove most significant bit because it is for the remain_closed
-				this->remain_closed = (data[HEADER_SIZE + 10] & 0x80) != 0x00;
-				this->flow_fitted = (data[HEADER_SIZE + 10] & 0x40) != 0x00;
-				this->pump_fitted = (data[HEADER_SIZE + 10] & 0x20) != 0x00;
+				this->station_delay = (data[HEADER_SIZE+9] | (data[HEADER_SIZE+10] << 8));
 				this->time_drift_thr = data[HEADER_SIZE + 11];
+				this->remain_closed = (data[HEADER_SIZE + 12] & 0x01) != 0x00;
+				this->flow_fitted = (data[HEADER_SIZE + 12] & 0x02) != 0x00;
+				this->pump_fitted = (data[HEADER_SIZE + 12] & 0x04) != 0x00;
+				this->use_dst = (data[HEADER_SIZE + 12] & 0x08) != 0x00;
+				this->current_on_thr = data[HEADER_SIZE+13];
 				return true;
 			} else return false;
 		} else return false;
@@ -896,9 +901,41 @@ bool CalibrationSetup::fromBinary(const std::vector<uint8_t> &data)
 	}
 }
 
+std::vector<uint8_t> CalibrationSetup::toBinary() const
+{
+	std::vector<uint8_t> data(this->header.toBinary());
+
+	data.push_back(this->min_sample_time);
+	data.push_back(this->max_sample_time);
+
+	uint64_t zone_mask = 0;
+	for(int zone : this->zones){
+		zone_mask |= 1L << zone;
+	}
+
+	data.push_back(zone_mask & 0xFF);
+	data.push_back((zone_mask >> 8) & 0xFF);
+	data.push_back((zone_mask >> 16) & 0xFF);
+	data.push_back((zone_mask >> 24) & 0xFF);
+	data.push_back((zone_mask >> 32) & 0xFF);
+
+	putSizeIntoData(data);
+	calculateCRC(data);
+	return data;
+}
+
+
+
 FlowConfiguration::FlowConfiguration()
 {
-
+	this->ID = FLOW_CONFIG;
+	this->offset = 0;
+	this->K = 0;
+	this->flow_thr_high = 0;
+	this->flow_thr_low = 0;
+	this->flow_thr_min = 0;
+	this->flow_interval = 0;
+	this->flow_count_thr = 0;
 }
 
 bool FlowConfiguration::fromBinary(const std::vector<uint8_t> &data)

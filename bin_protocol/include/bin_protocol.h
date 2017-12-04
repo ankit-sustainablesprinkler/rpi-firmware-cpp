@@ -144,7 +144,7 @@ class Config
 public:
 	Config();
 	Config(Header header, int ID = 0, int manual_start_time = 0, int manual_end_time = 0, int heartbeat_period = 120, int16_t system_time_offset = 0,\
-		int station_delay = 0, bool remain_closed = true, bool flow_fitted=false, bool pump_fitted=false, uint8_t time_drift_thr=0);
+		int station_delay = 0, bool remain_closed = true, bool flow_fitted=false, bool pump_fitted=false, uint8_t time_drift_thr=0, bool use_dst=false, uint8_t current_on_thr=0);
 	std::vector<uint8_t> toBinary() const;
 	bool fromBinary(const std::vector<uint8_t> &data);
 	Header header;
@@ -158,6 +158,8 @@ public:
 	bool flow_fitted;
 	bool pump_fitted;
 	uint8_t time_drift_thr;
+	bool use_dst;
+	uint8_t current_on_thr;
 };
 /*
 class Config
@@ -263,6 +265,7 @@ public:
 	CalibrationSetup();
 	CalibrationSetup(const Header &header, std::vector<uint8_t> zones, uint8_t min_time = 60, uint8_t max_time = 120);
 	bool fromBinary(const std::vector<uint8_t> &data);
+	std::vector<uint8_t> toBinary() const;
 	Header header;
 	std::vector<uint8_t> zones;
 	uint8_t min_sample_time;

@@ -6,7 +6,9 @@
 
 time_t schedule_getMidnight(const bin_protocol::Schedule &schedule, const bin_protocol::Config &config, time_t &now)
 {
-	int timezone = -4; // this needs to be in config
+	int timezone = -5; // this needs to be in config
+
+	if(config.use_dst) timezone += 1;
 
 	struct tm * now_date = localtime(&now);
 	struct tm midnight_date;

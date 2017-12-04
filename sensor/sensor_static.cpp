@@ -47,23 +47,43 @@ void sensorRead(s3state_t &state, bin_protocol::Schedule &schedule, bin_protocol
 	transformer_voltage_average.addValue(voltage);	
 	if(config.flow_fitted){
 		if(flowGet(flow)){
-		//std::cout << flow << std::endl;
+			if(flow != 0){
+				flow = flow_configuration.K*(flow + flow_configuration.offset);
+			}
+			//std::cout << "K: " << flow_configuration.K << " offset: " << flow_configuration.offset <<  " Flow: " << flow << std::endl;
 			
 			static int blocked_pump_detected_count = 0;
+			static int unscheduled_flow_count = 0;
 			flow_average.addValue(flow);
 			per_minute_flow.addValue(flow);
-			if(flow < flow_configuration.flow_thr_min && solenoid_current > CURRENT_THRESHOLD){
-				if(!state.var.blocked_pump_detected){
-					blocked_pump_detected_count ++;
-					if(blocked_pump_detected_count > 10){
-						std::cout << "Blocked pump detected" << std::endl;
-						state.var.blocked_pump_time = time(NULL);
-						state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.blocked_pump_time, 'P',""));
-						state.var.blocked_pump_detected = true;
+			if(config.pump_fitted){
+				if(flow < flow_configuration.flow_thr_min && solenoid_current > CURRENT_THRESHOLD){
+					if(!state.var.blocked_pump_detected){
+						blocked_pump_detected_count ++;
+						if(blocked_pump_detected_count > 10){
+							std::cout << "Blocked pump detected" << std::endl;
+							state.var.blocked_pump_time = time(NULL);
+							state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.blocked_pump_time, 'P',""));
+							state.var.blocked_pump_detected = true;
+						}
 					}
+				} else {
+					blocked_pump_detected_count = 0;
 				}
-			} else {
-				blocked_pump_detected_count = 0;
+
+				if(flow > flow_configuration.flow_thr_min && solenoid_current < CURRENT_THRESHOLD){
+					if(!state.var.unscheduled_flow){
+						unscheduled_flow_count ++;
+						if(unscheduled_flow_count > 60){
+							std::cout << "Leak detected" << std::endl;
+							state.var.unscheduled_flow_time = time(NULL);
+							state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.unscheduled_flow_time, 'U',"Flow: " + std::to_string(per_minute_flow.getAverage())));
+							state.var.unscheduled_flow = true;
+						}
+					}
+				} else {
+					unscheduled_flow_count = 0;
+				}
 			}
 		}
 	}

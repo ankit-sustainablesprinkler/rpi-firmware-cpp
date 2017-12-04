@@ -7,6 +7,7 @@
 #define PIN_RELAY 3
 #define PIN_RESET 7
 #define PIN_SYS_FAULT 4
+#define PIN_STATUS 1
 
 #define DEBUG_MODEM
 
@@ -34,6 +35,7 @@
 #define CONFIG_FILE SYS_FILE_PREFIX "config"
 #define FLOW_CONFIG_FILE SYS_FILE_PREFIX "flow_config"
 #define SCHEDULE_FILE SYS_FILE_PREFIX "schedule"
+#define CALIBRATION_FILE SYS_FILE_PREFIX "calibration"
 #define FIRMWARE_FILE ROOT_PREFIX "s3-main-new"
 #define HISTORY_FILE FILE_PREFIX "history.txt"
 #define HEARTBEAT_FAIL_COUNTER FILE_PREFIX "fail_count.txt"

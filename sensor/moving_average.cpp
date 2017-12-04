@@ -1,4 +1,5 @@
 #include "moving_average.h"
+#include <cmath>
 
 template<class T>
 MovingAverage<T>::MovingAverage(int size)
@@ -40,6 +41,29 @@ T MovingAverage<T>::getAverage()
 	} else {
 		return _sum;
 	}
+}
+
+template<class T>
+int MovingAverage<T>::getSize()
+{
+	return _size;
+}
+
+template<class T>
+T MovingAverage<T>::computeStdDev()
+{
+	T result = T(0);
+	if(this->_size > 1){
+		T mean = this->getAverage();
+		T sum = T(0);
+		auto pos = this->_values.begin();
+		while(pos < this->_values.begin() + this->_size){
+			sum += (*pos - mean) * (*pos - mean);
+			pos ++;
+		}
+		result = (T)sqrt(sum / (this->_size-1));
+	}
+	return result;
 }
 
 template class MovingAverage<int>;

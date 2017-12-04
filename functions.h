@@ -24,6 +24,9 @@ bool saveFlowConfig(const bin_protocol::FlowConfiguration &flow_config);
 bool getSchedule(bin_protocol::Schedule &schedule);
 bool saveSchedule(const bin_protocol::Schedule &schedule);
 
+bool getCalibration(bin_protocol::CalibrationSetup &calibration);
+bool saveCalibration(const bin_protocol::CalibrationSetup &calibration);
+
 int getHeartbeatFailCount();
 void setHeartbeatFailCount(int count);
 int incrementHeartbeatFail();

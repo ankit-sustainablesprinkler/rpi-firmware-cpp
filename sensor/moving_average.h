@@ -10,6 +10,8 @@ public:
 	bool addValue(const T &val);
 	void reset();
 	T getAverage();
+	int getSize();
+	T computeStdDev();
 private:
 	std::vector<T> _values;
 	typename std::vector<T>::iterator _current_pos;

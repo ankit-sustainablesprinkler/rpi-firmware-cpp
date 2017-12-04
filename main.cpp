@@ -26,6 +26,11 @@
 #define SERIAL_PORT "/dev/ttyAMA0" //"/dev/ttyAMA0"
 #define WDT_INTERRUPT_PERIOD 30
 
+#define PULSE_4HZ 1
+#define PULSE_2HZ 2
+#define PULSE_1HZ 4
+#define PULSE_OFF 0
+
 using namespace std;
 using namespace bin_protocol;
 bool runSchedule(const Schedule &schedule, const Config &config);
@@ -34,6 +39,7 @@ void switch_init();
 void fault_reset();
 void modemThread(bool RTC_fitted);
 void WDTThread();
+void LEDThread();
 
 mutex modem_mutex, modem_IO_mutex, modem_update_mutex;
 condition_variable modem_cond;
@@ -46,6 +52,7 @@ std::vector<uint8_t> message_string;
 s3state_t s3state;
 bool has_modem_info_sent = false;
 string extra_content = "";
+volatile int led_duration;
 
 
 namespace sensor{
@@ -61,7 +68,8 @@ Modem modem;
 
 Schedule new_schedule;
 Config new_Config;
-bool schedule_ready = false, config_ready = false, flow_config_ready = false, firstBoot = true, feedback_ready = false, flow_feedback_ready = false, heartbeat_sent = false; // Added firstBoot - Anthony
+bool schedule_ready = false, config_ready = false, flow_config_ready = false, firstBoot = true, feedback_ready = false, 
+     flow_feedback_ready = false, heartbeat_sent = false, perform_calibration = false;
 
 struct sample_t{
 	float current;
@@ -134,6 +142,7 @@ int main(int argc, char **argv)
 		wiringPiSetup();
 		switch_init();
 		pinMode(PIN_WDT_RESET, OUTPUT);
+		pinMode(PIN_STATUS, OUTPUT);
 		//pinMode(28, OUTPUT);
 		//digitalWrite(28, HIGH);
 		digitalWrite(PIN_WDT_RESET, HIGH);
@@ -173,11 +182,15 @@ int main(int argc, char **argv)
 		*/
 		thread wdt_thread(WDTThread);
 		thread modem_thread(modemThread, RTC_fitted);
+		thread led_thread(LEDThread);
 
 		//load config and schedule
 		Schedule schedule;
 		Config config;
 		FlowConfiguration flow_config;
+		CalibrationSetup calibration;
+
+		CalibrationResult cal_result;
 		bool has_schedule = getSchedule(schedule);
 		cout<< "programs: " << schedule.zone_duration.size() << endl;
 		bool has_config = getConfig(config);
@@ -234,15 +247,135 @@ int main(int argc, char **argv)
 				}catch(...){}
 				modem_IO_mutex.unlock();
 			}
-
 			modem_update_mutex.unlock();
+
+
 			sensor::sensorRead(s3state, schedule, config, flow_config);
-			if(schedule.isValid()) runSchedule(schedule, config);
+
+			if(!perform_calibration){
+				if(schedule.isValid()) runSchedule(schedule, config);
+			} else {
+				static int calibration_state = 0;
+				static int prev_calibration_state = -1;
+				static int zone_idx = 0;
+				time_t ref_time;
+				if(calibration_state != prev_calibration_state){
+					switch(calibration_state){
+						case 0: 
+							cout << "Calibration Ready" << endl;
+							led_duration = PULSE_OFF;
+							break;
+						case 1: 
+							cout << "Waiting for Idle System" << endl;
+							led_duration = PULSE_1HZ;
+							break;
+						case 2:
+							led_duration = PULSE_1HZ;
+							cout << "Initializing Calibration for zone " << (int) calibration.zones[zone_idx] << endl;
+							break;
+						case 3:
+							led_duration = PULSE_OFF;
+							cout << "Waiting for Zone to run" << endl;
+							break;
+						case 4:
+							led_duration = PULSE_2HZ;
+							cout << "Waiting for Flow to stabilize" << endl;
+							break;
+						case 5:
+							cout << "Waiting for Average" << endl;
+							led_duration = PULSE_2HZ;
+							break;
+						case 6:
+							cout << "Restarting Zone index " << (int) calibration.zones[zone_idx] << endl;
+							led_duration = PULSE_4HZ;
+							break;
+						case 7:
+							led_duration = PULSE_OFF;
+							cout << "Finished Calibration" << endl;
+							break;
+					}
+				}
+				prev_calibration_state = calibration_state;
+				switch(calibration_state){
+					case 0:{
+						if(getCalibration(calibration)) calibration_state = 1;
+						cal_result.flow_values.clear();
+
+						break;
+					}
+					case 1:{
+						if(zone_idx >= calibration.zones.size()){
+							calibration_state = 7;
+							break;
+						}
+						if(!(sensor::voltage_state || sensor::current_state)) calibration_state = 2;
+						break;
+					}
+					case 2:{ //initialization
+						closeRelay();
+						calibration_state = 3;
+					}
+					case 3:{
+						if(sensor::current_state){
+							ref_time = time(NULL);
+							calibration_state = 4;
+						}
+						break;
+					}
+					case 4:{
+						if(!sensor::current_state){
+							calibration_state = 6; //turning off the clock will cause the current zone to recalibrate
+							ref_time = time(NULL);
+							break;
+						}
+						if(time(NULL) >= ref_time + 10){
+							ref_time = time(NULL);
+							sensor::flow_average.reset();
+							calibration_state = 5;
+						}
+						break;
+					}
+					case 5:{
+						if(!sensor::current_state){
+							calibration_state = 6; //turning off the clock will cause the current zone to recalibrate
+							ref_time = time(NULL);
+						}
+						cout << sensor::flow_average.getSize() << endl;
+						if(sensor::flow_average.getSize() >= 60){
+							//Record flow
+							cal_result.flow_values.push_back(make_tuple<int,float,float>(calibration.zones[zone_idx], sensor::flow_average.getAverage(),
+									sensor::flow_average.computeStdDev()));
+							zone_idx++;
+							openRelay();
+							calibration_state = 1;
+						}
+						break;
+					}
+					case 6:{
+						
+						if(time(NULL) >= ref_time + 20){
+							calibration_state = 1;
+						}
+						break;
+					}
+					case 7:{
+						calibration_state = 0;
+						perform_calibration = false;
+						break;
+					}
+				}
+			}
 
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
 			if(time(nullptr) - s3state.var.last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
-				if(s3state.alert_feedback.alerts.size() > 0){
-					auto header = getHeader(bin_protocol::ALERT);s3state.alert_feedback.header = header;
+				if(cal_result.flow_values.size() > 0){
+					auto header = getHeader(bin_protocol::FLOW_RESULT);
+					cal_result.header = header;
+					message_string = cal_result.toBinary();
+					cal_result.flow_values.clear();
+				} else if(s3state.alert_feedback.alerts.size() > 0){
+					auto header = getHeader(bin_protocol::ALERT);
+					s3state.alert_feedback.header = header;
 					message_string = s3state.alert_feedback.toBinary();
 					s3state.alert_feedback.alerts.clear();
 				} else if(feedback_ready){
@@ -422,6 +555,7 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 
 				//Clear flags that need to be reset will manual run starts
 				s3state.var.blocked_pump_detected = false;
+				s3state.var.unscheduled_flow = false;
 
 				break;
 		}
@@ -612,7 +746,7 @@ void modemThread(bool RTC_fitted)
 				} catch(...){}
 				modem_IO_mutex.unlock();
 				
-				if(type == Type::CONFIG || type == Type::SCHEDULE){
+				if(type == Type::CONFIG || type == Type::SCHEDULE || type == Type::FLOW_CONFIG || type == Type::FLOW_CAL){
 					modem_update_mutex.lock();
 					switch(type){
 						case Type::CONFIG:
@@ -626,6 +760,10 @@ void modemThread(bool RTC_fitted)
 						case Type::FLOW_CONFIG:
 							cout << "READY for FLOW CONFIG" << endl;
 							flow_config_ready = true;
+							break;
+						case Type::FLOW_CAL:
+							cout << "READY for FLOW CALIBRATTION" << endl;
+							perform_calibration = true;
 							break;
 					}
 					modem_update_mutex.unlock();
@@ -684,6 +822,24 @@ void WDTThread()
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		digitalWrite(PIN_WDT_RESET, LOW);
 		this_thread::sleep_for(chrono::seconds(10));
+	}
+}
+
+void LEDThread()
+{
+	int count = 0;
+	while(true){
+		if(led_duration){
+			if(count < led_duration){
+				digitalWrite(PIN_STATUS, HIGH);
+			} else {
+				digitalWrite(PIN_STATUS, LOW);
+			}
+			count = (count + 1)%(led_duration*2);
+		} else {
+			digitalWrite(PIN_STATUS, LOW);
+		} 
+		this_thread::sleep_for(chrono::milliseconds(125));
 	}
 }
 

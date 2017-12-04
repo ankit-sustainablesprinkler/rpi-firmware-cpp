@@ -200,6 +200,35 @@ bool saveSchedule(const bin_protocol::Schedule &schedule)
 	return false;
 }
 
+bool getCalibration(bin_protocol::CalibrationSetup &calibration)
+{
+	std::ifstream file(CALIBRATION_FILE);//, std::ios::binary|std::ios::ate);
+	if(file.is_open()){
+
+		std::string str;
+		if(std::getline(file, str)){
+			std::vector<uint8_t> data;
+			base64_decode(data, str);
+			if(calibration.fromBinary(data))return true;
+		}
+	}
+	return false;;
+}
+bool saveCalibration(const bin_protocol::CalibrationSetup &calibration)
+{
+	std::ofstream file(CALIBRATION_FILE, std::ios::out);// | std::ofstream::binary);
+	if(file.is_open()){
+		auto bin_data = calibration.toBinary();
+		std::string str;
+		base64_encode(bin_data, str);
+		file << str;
+		file.flush();
+		file.close();
+		return true;
+	}
+	return false;
+}
+
 bin_protocol::Header getHeader(bin_protocol::Type type)
 {
 	return bin_protocol::Header(FIRMWARE_VERSION, type, std::time(nullptr), getSerialNumber());
@@ -351,6 +380,15 @@ bool handleHBResponse(const std::string &response, int &type)
 					delete[] firmware_data;
 					firmware_data = NULL;
 					break;
+				}
+				case bin_protocol::FLOW_CAL:{
+					bin_protocol::CalibrationSetup calibration;
+					if(calibration.fromBinary(data)){
+						result = true;
+						setSystemTime(calibration.header.timestamp);
+						std::cout << "SAVING CALIBRATION" << std::endl;
+						saveCalibration(calibration);
+					}
 				}
 			}
 		}

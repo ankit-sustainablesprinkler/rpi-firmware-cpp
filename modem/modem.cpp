@@ -747,8 +747,10 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 			else continue;
 		}
 		success = 1;
+		int send_length = headers.length() + message.request_messageBody.length();
 		if(headers.size() > 0)success = modem->SendData(headers);
 		success &= modem->SendData(message.request_messageBody);
+		std::cout << "SEND LENGTH: " << send_length << std::endl;
 		//success &= modem->SendData("\r\n");
 		if(!success){
 			modem->exitDataMode();
@@ -780,6 +782,7 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 		bool valid_http = data.find("HTTP/1.1 ") == 0;
 		
 		if (valid_http && (data.length() >= 20)) {
+			std::cout << "REPLY LENGTH: " << data.length() << std::endl;
 			message.statusCode = std::stoi(data.substr(9, 3));
 			message.reasonPhrase = data.substr(13, data.find("\r\n") - 13);
 			message.response_headers = data.substr(data.find("\r\n") + 2, data.find("\r\n\r\n") - data.find("\r\n") - 2);

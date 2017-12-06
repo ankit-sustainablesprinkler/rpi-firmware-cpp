@@ -372,7 +372,7 @@ bool flowGet(float &frequency)
 	wiringPiSPIDataRW(1, rx, 5);
 	digitalWrite(11, HIGH);
 
-	if(rx[1] != 0x01) return false;
+	if(rx[1] != 0x02) return false;
 	if(rx[4] != 0){
 		flowSetSampleSize(1);
 		return false;

@@ -1,5 +1,6 @@
 #include "moving_average.h"
 #include <cmath>
+#include <iostream>
 
 template<class T>
 MovingAverage<T>::MovingAverage(int size)

@@ -47,15 +47,19 @@ void sensorRead(s3state_t &state, bin_protocol::Schedule &schedule, bin_protocol
 	transformer_voltage_average.addValue(voltage);	
 	if(config.flow_fitted){
 		if(flowGet(flow)){
+			
+			//std::cout <<  " Flow before: " << flow << std::endl;
 			if(flow != 0){
 				flow = flow_configuration.K*(flow + flow_configuration.offset);
 			}
-			//std::cout << "K: " << flow_configuration.K << " offset: " << flow_configuration.offset <<  " Flow: " << flow << std::endl;
 			
 			static int blocked_pump_detected_count = 0;
 			static int unscheduled_flow_count = 0;
 			flow_average.addValue(flow);
+
 			per_minute_flow.addValue(flow);
+			
+			//std::cout <<  " Flow: " << per_minute_flow.getAverage() << " Size: " << per_minute_flow.getSize() <<  std::endl;
 			if(config.pump_fitted){
 				if(flow < flow_configuration.flow_thr_min && solenoid_current > CURRENT_THRESHOLD){
 					if(!state.var.blocked_pump_detected){

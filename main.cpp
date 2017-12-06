@@ -299,6 +299,7 @@ int main(int argc, char **argv)
 				switch(calibration_state){
 					case 0:{
 						if(getCalibration(calibration)) calibration_state = 1;
+						zone_idx = 0;
 						cal_result.flow_values.clear();
 
 						break;

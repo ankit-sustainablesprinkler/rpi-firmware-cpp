@@ -8,3 +8,7 @@ logs/
 etc/
 *.gz
 *.bin
+*.md5
+old-etc/
+86400
+s3-main-old

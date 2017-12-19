@@ -1012,4 +1012,27 @@ std::vector<uint8_t> CalibrationResult::toBinary() const
 	return data;
 }
 
+bool CalibrationResult::fromBinary(const std::vector<uint8_t> &data)
+{
+	if(isValidData(data)){
+		if(getSizefromBinary(data) == data.size()){
+			if(this->header.fromBinary(data))
+			{
+				int len = data[HEADER_SIZE];
+				int offset = HEADER_SIZE+1;
+				for(int i = 0; i < len; i++){
+					uint8_t zone = data[offset];
+					float avg;
+					float dev;
+					memcpy(&avg, &data[offset+1], 4);
+					memcpy(&dev, &data[offset+5], 4);
+					this->flow_values.push_back(std::make_tuple(zone, avg, dev));
+					offset += 9;
+				}
+				return true;
+			}
+		}
+	}
+}
+
 }

@@ -46,7 +46,7 @@ start_daemon() {
 stop_daemon(){
     echo "stopping schedule daemon..."
     kill -9 `pidof s3-main`
-    sleep 30
+    sleep 2
 }
 
 

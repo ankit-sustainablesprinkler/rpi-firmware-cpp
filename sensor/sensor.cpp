@@ -71,6 +71,8 @@ bool  meterGetValues (float  &volt_ac, float &volt_solenoid, float &curr_solenoi
 		volt_solenoid = (data & 0x7FFF) * VOLTAGE_SCALE * 2;  
 		//std::cout << "ADC Value: " << (data & 0x7FFF) << std::endl;
 		curr_solenoid = (data >> 15) * 7.706852299E-05f;
+
+		//std::cout << volt_solenoid << "  " << curr_solenoid;
 		//std::cout << curr_solenoid << std::endl;
 	} else {
 		//volt_ac = 0.0f;
@@ -80,7 +82,9 @@ bool  meterGetValues (float  &volt_ac, float &volt_solenoid, float &curr_solenoi
 	valid = meter_read(0x4A, data);
 	if (valid) {
 		//volt_ac = (data & 0x7FFF) * VOLTAGE_SCALE;
-		volt_ac = (data >> 15) * VOLTAGE_SCALE;//TODO Current and voltage channel swapped on board.
+		volt_ac = (data >> 15) * VOLTAGE_SCALE /2;//TODO Current and voltage channel swapped on board.
+
+		//std::cout << "  " << volt_ac << "  " << val << std::endl;
 	} else {
 		volt_solenoid = 0.0f;
 		volt_ac = 0.0f;

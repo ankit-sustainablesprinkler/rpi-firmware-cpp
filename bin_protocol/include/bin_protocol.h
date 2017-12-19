@@ -294,6 +294,7 @@ class CalibrationResult
 public:
 	CalibrationResult();
 	std::vector<uint8_t> toBinary() const;
+	bool fromBinary(const std::vector<uint8_t> &data);
 	Header header;
 	std::vector<std::tuple<int, float, float>> flow_values;
 };

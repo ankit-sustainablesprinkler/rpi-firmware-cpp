@@ -33,7 +33,7 @@
 
 using namespace std;
 using namespace bin_protocol;
-bool runSchedule(const Schedule &schedule, const Config &config);
+bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &config);
 static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message);
 void switch_init();
 void fault_reset();
@@ -212,6 +212,10 @@ int main(int argc, char **argv)
 		modem_cond.notify_all();
 		this_thread::sleep_for(chrono::seconds(1));
 
+
+		run_state_t state;
+		state.type = NONE;
+
 		//main loop
 		cout << "============ Entering main loop ================" << endl;
 		while(true)
@@ -250,10 +254,11 @@ int main(int argc, char **argv)
 			modem_update_mutex.unlock();
 
 
-			sensor::sensorRead(s3state, schedule, config, flow_config);
+
+			sensor::sensorRead(state, s3state, schedule, config, flow_config);
 
 			if(!perform_calibration){
-				if(schedule.isValid()) runSchedule(schedule, config);
+				if(schedule.isValid()) runSchedule(state, schedule, config);
 			} else {
 				static int calibration_state = 0;
 				static int prev_calibration_state = -1;
@@ -301,6 +306,7 @@ int main(int argc, char **argv)
 						if(getCalibration(calibration)) calibration_state = 1;
 						zone_idx = 0;
 						cal_result.flow_values.clear();
+						s3state.var.calibration_complete = false;
 
 						break;
 					}
@@ -346,6 +352,21 @@ int main(int argc, char **argv)
 							//Record flow
 							cal_result.flow_values.push_back(make_tuple<int,float,float>(calibration.zones[zone_idx], sensor::flow_average.getAverage(),
 									sensor::flow_average.computeStdDev()));
+							bool exists = false;
+							for(int i =0; i < s3state.cal_result.flow_values.size(); i++){
+								if(calibration.zones[zone_idx] == std::get<0>(s3state.cal_result.flow_values[i])){
+									std::get<1>(s3state.cal_result.flow_values[i]) = sensor::flow_average.getAverage();
+									std::get<2>(s3state.cal_result.flow_values[i]) = sensor::flow_average.computeStdDev();
+									exists = true;
+									break;
+								}
+							}
+
+							if(!exists){
+								s3state.cal_result.flow_values.push_back(make_tuple<int,float,float>(calibration.zones[zone_idx], sensor::flow_average.getAverage(),
+									sensor::flow_average.computeStdDev()));
+							}
+							
 							zone_idx++;
 							openRelay();
 							calibration_state = 1;
@@ -362,6 +383,7 @@ int main(int argc, char **argv)
 					case 7:{
 						calibration_state = 0;
 						perform_calibration = false;
+						s3state.var.calibration_complete = true;
 						break;
 					}
 				}
@@ -409,12 +431,11 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-bool runSchedule(const Schedule &schedule, const Config &config)
+bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &config)
 {
 	time_t now = time(nullptr),midnight;
 	midnight = schedule_getMidnight(schedule, config, now);
 	//cout << "Midnight: " << midnight << endl;
-	run_state_t state;
 	state.type = NONE;
 	
 	static int before_time = 0;
@@ -559,6 +580,12 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 				s3state.var.unscheduled_flow = false;
 
 				break;
+			case ZONE:
+				//Clear flags that need to reset on zone changes
+				s3state.var.low_flow = false;
+				s3state.var.high_flow = false;
+				s3state.var.very_high_flow = false;
+				break;
 		}
 		switch(s3state.var.previous_state.type){
 			case BEFORE:
@@ -580,7 +607,9 @@ bool runSchedule(const Schedule &schedule, const Config &config)
 					if(s3state.var.previous_state.zone < s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program].size()){
 						cout << "Zone: " << (int)s3state.var.previous_state.zone << ", Pgm: " << (int)s3state.var.previous_state.program << ", Voltage: " <<
 						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].voltage=sensor::voltage_average.getAverage())
-						<< ", Current: " << 
+						<< ", Xfmr: " << 
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].xfmr_voltage=sensor::voltage_average.getAverage())
+						<< ", Current: " <<
 						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].current=sensor::current_average.getAverage())
 						<< ", Flow: " << 
 						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].flow=sensor::flow_average.getAverage())

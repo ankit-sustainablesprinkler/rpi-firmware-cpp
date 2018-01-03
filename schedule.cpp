@@ -46,8 +46,7 @@ bool isWateringNeeded(const run_state_t &state, const bin_protocol::Schedule &sc
 	if(manual_start_time <= now && now < manual_end_time){ //Manual run period so swtich relay on
 		//std::cout << "Manual2" << std::endl;
 		result = config.remain_closed;// mechanical systems need to open during manual water.
-	}else if(now >= effective_date)  //TODO move this to normal run so it does not effect the start times for custom programs
-		result = isTimeToWater(state, schedule, config, now, midnight);
+	}else result = isTimeToWater(state, schedule, config, now, midnight);
 	return result;
 }
 
@@ -137,14 +136,17 @@ bool isTimeToWater(const run_state_t &state, const bin_protocol::Schedule &sched
 	//if schedule.is_shift:
 	int day_of_week = (now / 86400 + 3) % 7; //since UNIX epoch was on a thursday we add 3 to the day so that the 0 maps to monday in the enum
 	int difference = (midnight - schedule.effective_date)/86400;
-	if(schedule.days&0x80){
-		if(schedule.days&(2<day_of_week)) 
-			is_scheduled_day = true;
-	} else {
-		int n = schedule.days; //system runs every nth day.  for a 2 day skip we run once every 3 days
-		if(n <= 0) n = 1;
-		if(difference % n == 0) //is this an nth day?
-			is_scheduled_day = true;
+
+	if(now >= schedule.effective_date){
+		if(schedule.days&0x80){
+			if(schedule.days&(2<day_of_week)) 
+				is_scheduled_day = true;
+		} else {
+			int n = schedule.days; //system runs every nth day.  for a 2 day skip we run once every 3 days
+			if(n <= 0) n = 1;
+			if(difference % n == 0) //is this an nth day?
+				is_scheduled_day = true;
+		}
 	}
 	
 	//std::cout << "type " << type << std::endl;

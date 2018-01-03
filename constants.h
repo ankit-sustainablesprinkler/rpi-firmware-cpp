@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define FIRMWARE_VERSION 3
+#define FIRMWARE_VERSION 6
 
 #define PIN_WDT_RESET 2
 #define PIN_RELAY 3

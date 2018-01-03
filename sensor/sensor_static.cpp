@@ -45,7 +45,11 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 	meterGetValues(voltage, solenoid_voltage, solenoid_current);
 	current_average.addValue(solenoid_current);
 	voltage_average.addValue(solenoid_voltage);
-	transformer_voltage_average.addValue(voltage);	
+	transformer_voltage_average.addValue(voltage);
+	
+	float current_threshold = config.current_on_thr / 1000.0;
+	if(current_threshold <= 0.0) current_threshold = CURRENT_THRESHOLD;
+
 	if(config.flow_fitted){
 		if(flowGet(flow)){
 			
@@ -65,7 +69,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 			
 			//std::cout <<  " Flow: " << per_minute_flow.getAverage() << " Size: " << per_minute_flow.getSize() <<  std::endl;
 			if(config.pump_fitted){
-				if(flow < flow_configuration.flow_thr_min && solenoid_current > CURRENT_THRESHOLD){
+				if(flow < flow_configuration.flow_thr_min && solenoid_current > current_threshold){
 					if(!state.var.blocked_pump_detected){
 						blocked_pump_detected_count ++;
 						if(blocked_pump_detected_count > 10){
@@ -79,7 +83,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 					blocked_pump_detected_count = 0;
 				}
 
-				if(flow > flow_configuration.flow_thr_min && solenoid_current < CURRENT_THRESHOLD){
+				if(flow > flow_configuration.flow_thr_min && solenoid_current < current_threshold){
 					if(!state.var.unscheduled_flow){
 						unscheduled_flow_count ++;
 						if(unscheduled_flow_count > 60){
@@ -103,7 +107,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 						}
 					}
 					//std::cout << calibrated << "  " << (1+flow_configuration.flow_thr_low/100.0) << std::endl;
-					if(calibrated && flow < (1-flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > CURRENT_THRESHOLD){
+					if(calibrated && flow < (1-flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > current_threshold){
 						if(!state.var.low_flow){
 							low_flow_count ++;
 							if(low_flow_count > flow_configuration.flow_count_thr){
@@ -116,7 +120,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 					} else {
 						low_flow_count = 0;
 					}
-					if(calibrated && flow > (1+flow_configuration.flow_thr_low/50.0)*threshold && solenoid_current > CURRENT_THRESHOLD){
+					if(calibrated && flow > (1+flow_configuration.flow_thr_low/50.0)*threshold && solenoid_current > current_threshold){
 						if(!state.var.very_high_flow){
 							very_high_flow_count ++;
 							if(very_high_flow_count > flow_configuration.flow_count_thr){
@@ -130,7 +134,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 						very_high_flow_count = 0;
 					}
 
-					if(calibrated && flow > (1+flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > CURRENT_THRESHOLD){
+					if(calibrated && flow > (1+flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > current_threshold){
 						if(!state.var.high_flow){
 							high_flow_count ++;
 							if(high_flow_count > flow_configuration.flow_count_thr){
@@ -193,7 +197,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 	}
 
 	if(current_state){
-		if(solenoid_current < CURRENT_THRESHOLD*(1-HYSTERESIS)){
+		if(solenoid_current < current_threshold*(1-HYSTERESIS)){
 			current_state = false;
 			if(now > current_start){
 				std::cout << "Current off" << std::endl;
@@ -202,7 +206,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 			}
 		}
 	} else {
-		if(solenoid_current > CURRENT_THRESHOLD*(1+HYSTERESIS)){ 
+		if(solenoid_current > current_threshold*(1+HYSTERESIS)){ 
 			current_state = true;
 			std::cout << "Current on" << std::endl;
 			current_start = now;

@@ -608,7 +608,7 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 						cout << "Zone: " << (int)s3state.var.previous_state.zone << ", Pgm: " << (int)s3state.var.previous_state.program << ", Voltage: " <<
 						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].voltage=sensor::voltage_average.getAverage())
 						<< ", Xfmr: " << 
-						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].xfmr_voltage=sensor::voltage_average.getAverage())
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].xfmr_voltage=sensor::transformer_voltage_average.getAverage())
 						<< ", Current: " <<
 						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].current=sensor::current_average.getAverage())
 						<< ", Flow: " << 

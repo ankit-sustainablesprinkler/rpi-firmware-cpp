@@ -198,6 +198,14 @@ int main(int argc, char **argv)
 		time_t heartbeat_period = HEARTBEAT_MIN_PERIOD;//config.heartbeat_period;
 		if(heartbeat_period < HEARTBEAT_MIN_PERIOD) heartbeat_period = HEARTBEAT_MIN_PERIOD;
 
+		if(has_schedule && s3state.feedback[s3state.var.current_feedback].zone_runs.size() == 0){
+			s3state.feedback[s3state.var.current_feedback].manual_runs.clear();
+			s3state.feedback[s3state.var.current_feedback].zone_runs.resize(schedule.zone_duration.size());
+			for(int i = 0; i < schedule.zone_duration.size(); i++){
+				s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
+			}
+		}
+
 		//send first heartbeat
 		//string extra_content = "";
 		try{

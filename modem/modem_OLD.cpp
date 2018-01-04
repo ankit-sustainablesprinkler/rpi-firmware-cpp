@@ -12,15 +12,18 @@ using boost::lexical_cast;
 
 using namespace boost;
 
-
+//#if defined DEBUG_MODEM
 #define TRACE_EN
 #define TRACE_INFO(...)    do { auto _ts = ptime().time_of_day().total_milliseconds(); TRACE("[", _ts, "] ", __VA_ARGS__); } while (0)
 #define TRACE_DEBUG(...)   do { auto _ts = ptime().time_of_day().total_milliseconds(); TRACE("[", _ts, "] ", __VA_ARGS__); } while (0)
-
+//#else
+//#define TRACE_INFO(...)
+//#define TRACE_DEBUG(...)
+//#endif
 
 static uint8_t  errors = 0;
 
-// re-invent the time function 
+// re-invent the time function (better than solar roadways though...)
 static inline posix_time::ptime ptime (void)
 {
 	return posix_time::microsec_clock::local_time();
@@ -28,7 +31,7 @@ static inline posix_time::ptime ptime (void)
 
 template<typename T>
 void TRACE(T arg) {
-#ifdef TRACE_EN
+#if defined TRACE_EN
 	std::cout << arg << std::endl;
 #endif
 }
@@ -36,7 +39,7 @@ void TRACE(T arg) {
 template<typename T, typename... Args>
 void TRACE(T arg, Args... args)
 {
-#ifdef TRACE_EN
+#if defined TRACE_EN
 	std::cout << arg;
 #endif
     TRACE(args...);
@@ -44,7 +47,7 @@ void TRACE(T arg, Args... args)
 
 Modem::Modem(){
 	this->modem = new ModemDriver();
-	fail0 = fail1 = fail2 = fail3 = fial0 = 0;
+	fail1 = fail2 = fail3 = fail4 = fail5 = 0;
 }
 Modem::~Modem(){
 	delete this->modem;
@@ -59,8 +62,6 @@ void Modem::init()
 
 	digitalWrite(PIN_MODEM_RTS, LOW);
 	digitalWrite(PIN_MODEM_ON, HIGH);										
-//	std::this_thread::sleep_for(std::chrono::seconds(6));
-	//digitalWrite(PIN_MODEM_ON, LOW);										/* Power on modem.										*/
 }
 bool Modem::Open(const std::string &device, int baudrate)
 {
@@ -72,97 +73,113 @@ bool Modem::waitForReady(time_t timeout)
 	time_t start_time = time(nullptr);
 	std::string response;
 	int state = 0;
-	do{
-		//switch(state)
-		//{
-		//	case 0:
-		modem->WaitURC("^SYSSTART",response, boost::posix_time::seconds(timeout));
-		modem->SendCmd("+CSQ", response);
-				if(modem->WaitURC("SQNREGISTEREDIMPU",response, boost::posix_time::seconds(timeout))){
-					//std::this_thread::sleep_for(std::chrono::seconds(5));
-					return true;
-				}
-		//	case 1:
-		//		if(modem->SendCmd("+CGDCONT?", response)){
-		//			return true;
-		//		}
-		//}
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-		//std::cout << "UNDATA: " << response << std::endl;
-		//if(modem->SendCmd("", response)) return true;
-	}while(time(nullptr) - start_time <= timeout);
+	
+	modem->WaitURC("^SYSSTART",response, boost::posix_time::seconds(timeout));
+	// inserting band selection test code here - Anthony
+	modem->SendCmd("^SCFG=\"Radio/Band\",\"33554432\",\"1\"", response);
+#if defined DEBUG_MODEM
+	std::cout << "Radio/Band: " << response << std::endl;
+#endif
+	// end of band selection test code
+	if(modem->WaitURC("SQNREGISTEREDIMPU",response, boost::posix_time::seconds(90))){
+		return true;
+	}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	
 	return false;
 }
 
 bool Modem::ohShit(int fail_state)
 {
 	std::string response;
-	while(fail_state != 4){
+	while(fail_state != 7){
 		
 		//escalate fail_state depending on current fail counters
+#if defined DEBUG_MODEM
 		std::cout << "INFO\tCurrently in state " << fail_state << std::endl;
-		std::cout << "INFO\tFial0: " << fial0 << ", Fail0: " << fail0 << ", Fail1: " << fail1 << ", Fail2: " << fail2 << ", Fail3: " << fail3 << std::endl;
-		
-		if(fial0 >= 4){
-			fail_state = 4;
-			std::cout << "INFO\tswitching to state " << fail_state << std::endl;
-		}
-		if(fail0 >= 10){
-			fail_state = 2;
-			std::cout << "INFO\tswitching to state " << fail_state << std::endl;
-		}
-		if(fail1 >= 3){
-			fail_state = 2;
-			std::cout << "INFO\tswitching to state " << fail_state << std::endl;
-		}
-		if(fail2 >= 2){
-			fail_state = 3;
-			std::cout << "INFO\tswitching to state " << fail_state << std::endl;
-		}
-		if(fail3 >= 1){
-			fail_state = 4;
-			std::cout << "INFO\tswitching to state " << fail_state << std::endl;
-		}
-		
+		std::cout << "INFO\tFail1: " << fail1 << ", Fail2: " << fail2 << ", Fail3: " << fail3 << ", Fail4: " << fail4 << ", Fail5: " << fail5 << std::endl;
+#endif
 		switch(fail_state){
-			case 0:{
-				modem->SendCmd("+CEER", response);
-				std::cout << "ERROR STATE 0: " << response << std::endl;
-				
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				if(!modem->SendCmd("+CSQ", response)){
-					fial0++;
-					break;
-				}
-				auto colon = response.find(':');
-				auto comma = response.find(',');
-				if((colon == std::string::npos)||(comma == std::string::npos)){
-					fial0++;
-					break;
-				}
-				if(std::stoi(response.substr(colon + 2, comma - colon - 2)) == 99){
-					fial0++;
-					break;
-				}
-				
-				if(!modem->SendCmd("+COPS=?", response, boost::posix_time::seconds(20))){
-					std::this_thread::sleep_for(std::chrono::seconds(10));
-					fial0++;
-					break;
-				}
-				
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-				
-				
-				fail0++;
-				fial0 = 0;
-				return true;
-				break;
-			}
 			case 1:{
+				modem->SendCmd("+CEER", response);
+#if defined DEBUG_MODEM
+				std::cout << "CEER: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CSQ", response);
+#if defined DEBUG_MODEM
+				std::cout << "CSQ: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CESQ", response);
+#if defined DEBUG_MODEM
+				std::cout << "CESQ: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CGPADDR=1", response);
+#if defined DEBUG_MODEM
+				std::cout << "CGPADDR: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+COPS?", response, boost::posix_time::seconds(15)); // Arbitrary wait time
+#if defined DEBUG_MODEM
+				std::cout << "COPS: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("^SICA=0,3", response);
+#if defined DEBUG_MODEM
+				std::cout << "SICA=0,3: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				
+				if(fail1 >= 1){
+					fail_state = 3;
+#if defined DEBUG_MODEM
+					std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+					break;
+				}
+				
+				modem->SendCmd("+CGATT=0", response);
+#if defined DEBUG_MODEM
+				std::cout << "CGATT=0: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::seconds(5));
+				fail1++;
+				modem->SendCmd("+CGATT=1", response);
+#if defined DEBUG_MODEM
+				std::cout << "CGATT=1: " << response << std::endl;
+#endif
+				
+				if(modem->WaitURC("SQNREGISTEREDIMPU",response, boost::posix_time::seconds(90))){
+					return true;
+				}
+				
+				fail_state = 3;
+#if defined DEBUG_MODEM
+				std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+				break;
+				
+				
+				/*
 				modem->SendCmd("^SISC=0", response);
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				if(!modem->SendCmd("^SICA=0,3", response)){
+					fail_state = 3;
+					break;
+				}
+				// Additional troubleshooting commands & responses
+				if(!modem->SendCmd("+CGATT=0", response)){
+					fail_state = 3;
+					break;
+				}
+				std::this_thread::sleep_for(std::chrono::seconds(10)); // Arbitrary wait time
+				if(!modem->SendCmd("+CGATT=1", response)){
+					fail_state = 3;
+					break;
+				}
+				if(!modem->WaitURC("SQNREGISTEREDIMPU",response, boost::posix_time::seconds(120))){
 					fail_state = 3;
 					break;
 				}
@@ -170,32 +187,127 @@ bool Modem::ohShit(int fail_state)
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 
 				fail1++;
-				fail0 = 0;
-				fial0 = 0;
 				return true;
-				break;
+				break;*/
 			}
 			case 2:{
-				modem->SendCmd("^SISC=0", response);
+				modem->SendCmd("+CEER", response);
+#if defined DEBUG_MODEM
+				std::cout << "CEER: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CSQ", response);
+#if defined DEBUG_MODEM
+				std::cout << "CSQ: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CESQ", response);
+#if defined DEBUG_MODEM
+				std::cout << "CESQ: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CGPADDR=1", response);
+#if defined DEBUG_MODEM
+				std::cout << "CGPADDR: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+COPS?", response, boost::posix_time::seconds(15)); // Arbitrary wait time
+#if defined DEBUG_MODEM
+				std::cout << "COPS: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+SISC=0", response);
+#if defined DEBUG_MODEM
+				std::cout << "SISC=0: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("^SICA=0,3", response);
+#if defined DEBUG_MODEM
+				std::cout << "SICA=0,3: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				
+				if(fail2 >= 1){
+					fail_state = 3;
+#if defined DEBUG_MODEM
+					std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+					break;
+				}
+				
+				modem->SendCmd("+CGATT=0", response);
+#if defined DEBUG_MODEM
+				std::cout << "CGATT=0: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::seconds(5));
+				fail2++;
+				modem->SendCmd("+CGATT=1", response);
+#if defined DEBUG_MODEM
+				std::cout << "CGATT=1: " << response << std::endl;
+#endif
+				
+				if(modem->WaitURC("SQNREGISTEREDIMPU",response, boost::posix_time::seconds(90))){
+					return true;
+				}
+				
+				fail_state = 3;
+#if defined DEBUG_MODEM
+				std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+				break;
+				
+				/*modem->SendCmd("^SISC=0", response);
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				modem->SendCmd("^SICA=0,3", response);
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				modem->SendCmd("+CFUN=4,0", response);//Switch to Airplane mode
-				std::this_thread::sleep_for(std::chrono::seconds(5));
-				modem->SendCmd("+CFUN=1,0", response);//Switch to Normal mode
-				std::this_thread::sleep_for(std::chrono::seconds(5));
-				
-				
+				modem->SendCmd("+CFUN=0", response);//Switch to 'Minimum Functionality'  mode
+				std::this_thread::sleep_for(std::chrono::seconds(10)); // Arbitrary wait time
+				modem->SendCmd("+CFUN=1", response);//Switch to Normal mode
+				if(!modem->WaitURC("SQNREGISTEREDIMPU",response, boost::posix_time::seconds(120))){
+					fail_state = 3;
+					break;
+				}
 				
 				fail2++;
 				fail1 = 0;
-				fail0 = 0;
-				fial0 = 0;
 				return true;				
-				break;
+				break;*/
 			}
 			case 3:{
-				modem->SendCmd("+CEER", response);
+				if(fail3 >= 1){
+					fail_state = 4;
+#if defined DEBUG_MODEM
+					std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+					break;
+				}
+				
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CFUN=0", response);
+#if defined DEBUG_MODEM
+				std::cout << "CFUN=0: " << response << std::endl;
+#endif
+				std::this_thread::sleep_for(std::chrono::seconds(5));
+				fail3++;
+				modem->SendCmd("+CFUN=1", response);
+#if defined DEBUG_MODEM
+				std::cout << "CFUN=1: " << response << std::endl;
+#endif
+				
+				if(modem->WaitURC("SQNREGISTEREDIMPU",response, boost::posix_time::seconds(90))){
+					fail1 = fail2 = 0;
+					return true;
+				}
+				
+				fail_state = 4;
+#if defined DEBUG_MODEM
+				std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+				break;
+				
+				
+				
+				/*modem->SendCmd("+CEER", response);
 				std::cout << "CEER: " << response << std::endl;
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				modem->SendCmd("^SISC=0", response);
@@ -212,18 +324,75 @@ bool Modem::ohShit(int fail_state)
 				fail3++;
 				fail2 = 0;
 				fail1 = 0;
-				fail0 = 0;
-				fial0 = 0;
 				return true;
-				break;
+				break;*/
 			}
-			case 4:
-				fail3 = 0;
+			case 4:{
+				if(fail4 >= 1){
+					fail_state = 5;
+#if defined DEBUG_MODEM
+					std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+					break;
+				}
+				
+				fail4++;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				modem->SendCmd("+CFUN=1,1", response); // Does this command return a response? - Anthony
+#if defined DEBUG_MODEM
+				std::cout << "CFUN=1,1: " << response << std::endl;
+#endif
+				
+				if(waitForReady()){
+					fail1 = fail2 = fail3 = 0;
+					return true;
+				}
+				
+				fail_state = 5;
+#if defined DEBUG_MODEM
+				std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+				break;
+				
+				
+				
+				/*fail3 = 0;
 				fail2 = 0;
 				fail1 = 0;
-				fail0 = 0;
-				fial0 = 0;
-				return false;
+				return false;*/
+			}
+			case 5:{
+				// Power cycle modem
+				if(fail5 >= 1){
+					fail_state = 6;
+#if defined DEBUG_MODEM
+					std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+#endif
+					break;
+				}
+				
+				//fail5++; // Accepting defeat
+				if(hardReset()) {
+					fail1 = fail2 = fail3 = fail4 = 0;
+					return true;
+				}
+				
+				fail1 = fail2 = fail3 = fail4 = 0;
+				//fail_state = 6;
+#if defined DEBUG_MODEM
+				//std::cout << "INFO\tswitching to state " << fail_state << std::endl;
+				std::cout << "Accepting Defeat..." << fail_state << std::endl;
+#endif
+				return true; // Accepting defeat
+			}
+			case 6:{ // Complete failure. Output high SPL 1kHz tone from box to alert nearby techs. Or reboot RPi.
+				fail1=0;
+				fail2=0;
+				fail3=0;
+				fail4=0;
+				fail5=0;
+				return true; // Accepting defeat
+			}
 			default:
 				return false;
 		}
@@ -251,10 +420,11 @@ void  Modem::set_error (void)
 
 		std::this_thread::sleep_for(std::chrono::seconds(15));
 
-		modem->WaitURC("^", response, boost::posix_time::seconds(30));
+		modem->WaitURC("^", response, boost::posix_time::seconds(90));
 
+#if defined DEBUG_MODEM
 		std::cout << "URC: " << response << std::endl;
-
+#endif
 		throw(FailureException("Modem Hardware Error", "Resetting modem on command errors.", "service_unavailable"));
 	}
 }
@@ -400,15 +570,9 @@ int Modem::Signal ()
 
 		throw(FailureException("Hardware Error", "Failed to retrieve modem signal strength/quality indicators.", "service_unavailable"));
 	}
+	modem->SendCmd("+CESQ", response); // return signal strength power
 
 	errors = 0;
-
-	/*if (response.length() < 3) {
-		result.rssi = "<error>";
-		result.ber = "<error>";
-
-		return result;
-	}*/
 
 	auto colon = response.find(':');
 	auto comma = response.find(',');
@@ -420,7 +584,6 @@ int Modem::Signal ()
 	}
 
 	result = std::stoi(response.substr(colon + 2, comma - colon - 2));
-//	result.ber = std::stoi(response.substr(comma + 1, response.length() - comma - 3));
 
 	return result;
 }
@@ -469,26 +632,34 @@ bool Modem::getInfo(modem_info_t &info)
 
 bool Modem::PowerOn ()
 {
-	digitalWrite(PIN_MODEM_ON, LOW);
+	digitalWrite(PIN_MODEM_ON, HIGH);
 	return true;
 }
 
 bool Modem::PowerOff ()
 {
-	digitalWrite(PIN_MODEM_ON, HIGH);	
+	digitalWrite(PIN_MODEM_ON, LOW);	
 	return true;
 }
 
-void Modem::hardReset()
+bool Modem::hardReset()
 {
+#if defined DEBUG_MODEM
+	std::cout << "Powering modem OFF" << std::endl;
+#endif
 	PowerOff();
 	std::this_thread::sleep_for(std::chrono::seconds(10));
+#if defined DEBUG_MODEM
+	std::cout << "Powering modem ON" << std::endl;
+#endif
 	PowerOn();
-	waitForReady();
-	//std::this_thread::sleep_for(std::chrono::seconds(2));
+#if defined DEBUG_MODEM
+	std::cout << "waitForReady()" << std::endl;
+#endif
+	return waitForReady();
 }
 
-bool  Modem::Reset ()
+bool  Modem::Reset () // This reset routine is not compliant with 4.3.2.0 firmware - Anthony
 {
 	if(modem == nullptr){
 		throw(FailureException("Modem Hardware Error", "Modem is not initialized", "device_unavailable"));
@@ -505,152 +676,136 @@ bool  Modem::Reset ()
 bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 {
 	std::string response;
-	fail0 = fail1 = fail2 = fail3 = fial0 = 0;
+	fail1 = fail2 = fail3 = fail4 = fail5 = 0;
 	while(true){
+		std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Immense number of arbitrary wait times
 		modem->SendCmd("+CGDCONT=3,\"IPV4V6\",\"NIMBLINK.GW12.VZWENTP\"", response);
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		modem->SendCmd("+CGDCONT?", response);
 		if(response.find("NIMBLINK.GW12.VZWENTP") == std::string::npos);//error
-		int signal = Signal();
-		if(!signal || signal == 99);//error
-		std::cout << "INFO\tSignal: " << signal << std::endl;
-		
-		/*std::this_thread::sleep_for(std::chrono::seconds(2));
-		if(!modem->SendCmd("+CGPADDR=3", response)){
-			std::cout << "ERROR\t" << "AT+CGPADDR=3 failed. executing ohShit(0)" << std::endl;
-			if(!ohShit(0)) return false;
-			else continue;
-		}*/
-		std::cout << "INFO\tIP ADDRESS: " << response << std::endl;
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		modem->SendCmd("^SICA=1,3", response);
-		std::this_thread::sleep_for(std::chrono::seconds(5));
+		std::this_thread::sleep_for(std::chrono::seconds(5)); // Arbitrary wait time
 		modem->SendCmd("^SICA?", response);
 		if(response.find("3,1") == std::string::npos){
+#if defined DEBUG_MODEM
 			std::cout << "ERROR\t" << "AT^SICA? failed. executing ohShit(1)" << std::endl;
+#endif
 			if(!ohShit(1)) return false;
 			else continue;
 		}
-
-		/*if(!modem->SendCmd("^SISI?", response)){
-			std::cout << "ERROR\t" << "AT^SISI? failed. executing ohShit(1)" << std::endl;
-			if(!ohShit(1)) return false;
-			else continue;
-		}
-			
-		if(response.length() && response.find("^SISI: 0,2") != std::string::npos){
-			modem->SendCmd("^SISC=0", response);
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-		}*/
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		
+		modem->SendCmd("+CSQ", response);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		modem->SendCmd("+CESQ", response);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		modem->SendCmd("+CGPADDR=1", response);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		
 		bool success = true;
-		//for(int retry = 0; retry < 3; retry++){
-		//	if(retry){
-		//		modem->SendCmd("^SISC=0", response);
-		//		std::this_thread::sleep_for(std::chrono::milliseconds(500));
-		//	}
-		//std::this_thread::sleep_for(std::chrono::seconds(3));
+
 		success &= modem->SendCmd("^SISS=0,\"srvType\",\"Socket\"", response);
-		
-		//std::this_thread::sleep_for(std::chrono::seconds(3));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		success &= modem->SendCmd("^SISS=0,\"conId\",3", response);
-		
-		//std::this_thread::sleep_for(std::chrono::seconds(3));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		success &= modem->SendCmd("^SISS=0,\"address\",\"socktcp://" + message.host + ":" + std::to_string(message.port) + ";etx\"", response);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		
-		//std::this_thread::sleep_for(std::chrono::seconds(3));
 		if(!success) {
-			if(!ohShit(1)) return false;
+			if(!ohShit(2)) return false;
 			else continue;
 		}
 
-		//std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		success = modem->SendCmd("^SISO=0", response);
 		if(!success) {
-			if(!ohShit(1)) return false;
+			if(!ohShit(2)) return false;
 			else continue;
 		}
 		
+#if defined DEBUG_MODEM
 		std::cout << "Response: " << response << std::endl;
-		
-		//	for(int retry1 = 0; retry1 < 5; retry1++){
-		//		
-		//		success = modem->SendCmd("^SISW=?", response);
-		//		if(success) break;
-		//	}
-			
-		//	if(!success) continue;
-			
-		/*	success = modem->WaitURC("^SISW:", response, boost::posix_time::seconds(5));  // this never happens
-			modem->SendCmd("^SISO?", response);
-			if(success){
-				if(response.find("^SISW: 0,1") == std::string::npos){
-					success = false;
-					continue;
-				}
-			}*/
-			
-			//std::this_thread::sleep_for(std::chrono::seconds(5));
-			
-			
-			
-			//modem->SendCmd("^SISO?", response);
-		//	break;
-		//}
+#endif
+
 		success = modem->WaitURC("^SISW: 0,1", response, boost::posix_time::seconds(20));
 		if(!success){
+#if defined DEBUG_MODEM
 			std::cout << "ERROR\t" << "Socket setup failed. executing ohShit(1)" << std::endl;
-			if(!ohShit(1)) return false;
+#endif
+			if(!ohShit(2)) return false;
 			else continue;
 		}
 		
-		/*if(!modem->SendCmd("^SIST=0", response)){
-			std::cout << "ERROR\t" << "SIST failed. executing ohShit(1)" << std::endl;
-			if(!ohShit(1)) return false;
-			else continue;
-		}*/
-		
-		//std::this_thread::sleep_for(std::chrono::seconds(3));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if(!modem->SendCmd("^SIST=0", response)){
+#if defined DEBUG_MODEM
 			std::cout << "ERROR\t" << "SIST failed. executing ohShit(1)" << std::endl;
-			if(!ohShit(1)) return false;
+#endif
+			if(!ohShit(2)) return false;
 			else continue;
 		}
-		
-		success = modem->SendData(headers);
+		success = 1;
+		int send_length = headers.length() + message.request_messageBody.length();
+		if(headers.size() > 0)success = modem->SendData(headers);
 		success &= modem->SendData(message.request_messageBody);
+		std::cout << "SEND LENGTH: " << send_length << std::endl;
+		//success &= modem->SendData("\r\n");
 		if(!success){
 			modem->exitDataMode();
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 			modem->SendCmd("^SISC=0", response);
+#if defined DEBUG_MODEM
 			std::cout << "ERROR\t" << "HTTP failed. executing ohShit(1)" << std::endl;
-			if(!ohShit(1)) return false;
+#endif
+			if(!ohShit(2)) return false;
 			else continue;
 		}
 		
 		std::string data;
-		if(!modem->RecvData(data, boost::posix_time::seconds(30))){
+		if(!modem->RecvData(data, boost::posix_time::seconds(90))){
 			modem->exitDataMode();
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 			modem->SendCmd("^SISC=0", response);
+#if defined DEBUG_MODEM
 			std::cout << "ERROR\t" << "HTTP failed. executing ohShit(1)" << std::endl;
-			if(!ohShit(1)) return false;
+#endif
+			if(!ohShit(2)) return false;
 			else continue;
+		} else {
+			modem->exitDataMode();
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 		}
-		
-		//message.host = host;
-		//message.port = port;
-		//message.requestLine = requestLine;
-		//message.request_headers = headers;
-
+		modem->SendCmd("^SISC",response);
+		std::cout << "HERE HERE HERE" << std::endl;
 		bool valid_http = data.find("HTTP/1.1 ") == 0;
-
+		
 		if (valid_http && (data.length() >= 20)) {
+			std::cout << "REPLY LENGTH: " << data.length() << std::endl;
 			message.statusCode = std::stoi(data.substr(9, 3));
 			message.reasonPhrase = data.substr(13, data.find("\r\n") - 13);
 			message.response_headers = data.substr(data.find("\r\n") + 2, data.find("\r\n\r\n") - data.find("\r\n") - 2);
 			size_t index = data.find("\r\n\r\n");
 			if(index > 0){
-				message.response_messageBody = data.substr(index + 4);
+				index += 4;
+				if(data.find("Transfer-Encoding: chunked") != std::string::npos){
+					std::cout << "Receiving Chunked data" << std::endl;
+					std::string delimiter = "\r\n";
+					size_t pos = index, prev_pos = index;
+					std::string token;
+					while ((pos = data.find(delimiter, prev_pos+1)) != std::string::npos) {
+						token = data.substr(prev_pos, pos-prev_pos);
+						int len = std::stoul(token, nullptr, 16);
+						pos += delimiter.length();
+						message.response_messageBody += data.substr(pos, len);
+						pos += len;
+						pos += delimiter.length();
+						prev_pos = pos;
+					}
+				} else {
+					message.response_messageBody = data.substr(index);
+				}
 			}
 		} else {
 			message.statusCode = 502;
@@ -658,402 +813,14 @@ bool Modem::sendRequest(const std::string &headers, modem_reply_t &message)
 			message.response_headers = "";
 			message.response_messageBody = data;
 		}
-
+		
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		modem->SendCmd("^SISC=0", response);
-		modem->SendCmd("^SICA=0,3", response);
+#if defined DEBUG_MODEM
+		std::cout << "HeartBeat success!" << std::endl;
+#endif
+		//modem->SendCmd("^SICA=0,3", response); // Keeping the PDP context active in this test - Anthony
 
 		return true;
 	}
 }
-/*
-Modem::ErrType Modem::HttpRequest (modem_reply_t &reply,
-	std::string  host,
-	uint16_t     port,
-	std::string  requestLine,
-	std::string  headers)
-{
-	std::string messageBody;
-
-	return HttpRequest(reply, host, port, requestLine, headers, messageBody);
-}
-
-Modem::ErrType Modem::HttpRequest (modem_reply_t &reply,
-	std::string  host,
-	uint16_t     port,
-	std::string  requestLine,
-	std::string  headers,
-	const std::string &messageBody)
-{
-	Modem::ErrType result = Modem::NONE;
-	bool valid;
-	std::string response;
-	std::string data;
-    static uint8_t  timeouts = 0;
-	if(modem == nullptr){
-		throw(FailureException("Modem Hardware Error", "Modem is not initialized", "device_unavailable"));
-	}
-
-	if (!modem->IsOpen())
-		return ErrType::SERIAL_PORT_FAIL;
-
-
-	if (timeouts == 5) {
-    	errors = 0;
-    	timeouts = 0;
-
-		TRACE_DEBUG("Resetting modem on timeout errors.");
-
-		digitalWrite(28, HIGH);
-		std::this_thread::sleep_for(std::chrono::seconds(6));
-    	digitalWrite(28, LOW);
-
-    	TRACE_DEBUG("Waiting for modem to boot.");
-
-    	std::this_thread::sleep_for(std::chrono::seconds(15));
-
-		modem->WaitURC("^", response, boost::posix_time::seconds(30));
-
-		std::cout << "URC: " << response << std::endl;
-
-		//how do we come to the conlusion that the modem is in an error state. No checking is done here!!
-		
-		return ErrType::BOOT_FAIL;
-	}
-
-
-	valid = modem->SendCmd("+CGDCONT?", response);
-	if (!valid) {
-		set_error();
-
-		return ErrType::PDP_QUERY_ERROR;
-	}
-
-	errors = 0;
-	if (response.length() > 0) {
-		if (response.find("+CGDCONT: 3,\"IPV4V6\",\"NIMBLINK.GW12.VZWENTP\"") == std::string::npos) {
-			valid = modem->SendCmd("+CGDCONT=3,\"IPV4V6\",\"NIMBLINK.GW12.VZWENTP\"", response);
-			if (!valid)
-				return ErrType::PDP_DEFINE_ERROR;
-		}
-	}
-
-	bool active = false;
-	valid = modem->SendCmd("^SICA?", response);
-	if (valid && (response.length() > 0)) {
-		if (response.find("^SICA: 3,1") !=std::string::npos) {
-			active = true;
-		}
-	}
-
-	if (!valid)
-		return ErrType::SICA_FAIL;
-	if (!active) {
-		for (int retry = 0; retry < 1; retry++) {
-			valid = modem->SendCmd("^SICA=1,3", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			if (!valid) {
-				continue;
-			}
-			
-
-			for (int retry = 0; retry < 6; retry++) {
-				valid = modem->SendCmd("^SICA?", response);
-				if (valid && (response.length() > 0)) {
-					if (response.find("^SICA: 3,1") != std::string::npos) {
-						active = true;
-						break;
-					}
-				}
-
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			}
-
-			if (active)
-				break;
-		}
-		if (!valid)
-			return ErrType::SICA_FAIL;
-		if (!active) {
-			int signal = Signal();
-			modem->SendCmd("+CMEE=2", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("+CEREG=2", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("+CCID", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("+CGSN", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("+CFUN?", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("+CEREG?", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("+CSQ", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("+CGATT?", response);
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			modem->SendCmd("^SISO?", response);
-
-			//throw(FailureException("Modem Hardware Error", "Internet connection could not be activated.", "service_unavailable"));
-			if(signal != 99 && signal != 0) return Modem::NO_SIGNAL;
-			else return INF3c0;
-		}
-	}
-
-	valid = modem->SendCmd("^SISI?", response);
-	if (!valid)
-		return ErrType::INET_QUERY_FAIL;
-
-	if (response.length() > 0) {
-		if (response.find("^SISI: 0,2") == std::string::npos) {
-			modem->SendCmd("^SISC=0", response);
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(500));
-		}
-	}
-
-
-	for (int retry = 0; retry < 3; retry++) {
-		if (retry) {
-			modem->SendCmd("^SISC=0", response);
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(500));
-		}
-
-		valid = modem->SendCmd("^SISS=0,\"srvType\",\"Socket\"", response);
-		if (!valid) {
-			if (retry == 2) {
-				std::cout << "Failed to set type of internet service." << std::endl;
-				return ErrType::INET_FAIL;
-			} else {
-				continue;
-			}
-		}
-
-		valid = modem->SendCmd("^SISS=0,\"conId\",3", response);
-		if (!valid) {
-			if (retry == 2) {
-				std::cout << "Failed to set internet service profile id." << std::endl;
-				return ErrType::INET_FAIL;
-			} else {
-				continue;
-			}
-		}
-		valid = modem->SendCmd("^SISS=0,\"address\",\"socktcp://" + host + ":" + std::to_string(port) + ";etx\"", response);
-		if (!valid) {
-			if (retry == 2) {
-				std::cout << "Failed to set internet service url." << std::endl;
-				return ErrType::INET_FAIL;
-			} else {
-				continue;
-			}
-		}
-
-		modem->SendCmd("+CMEE=2", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("+CEREG=2", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("+CCID", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("+CGSN", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("+CFUN?", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("+CEREG?", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("+CSQ", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("+CGATT?", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-		valid = modem->SendCmd("^SISO=0", response);
-		if (!valid) {
-			if (retry == 2) {
-				std::cout << "Failed to open internet service." << std::endl;
-				return ErrType::INET_FAIL;
-			} else {
-				continue;
-			}
-		}
-
-		valid = modem->WaitURC("^SISW:", response, boost::posix_time::seconds(30));
-		if (!valid) {
-			if (retry == 2) {
-				timeouts++;
-
-				modem->SendCmd("+CEER", response);
-				modem->SendCmd("^SISO?", response);
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
-				modem->SendCmd("^SISC=0", response);
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
-				modem->SendCmd("^SISO?", response);
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-				std::cout << "Internet service not ready." << std::endl;
-				
-				return ErrType::INET_FAIL;
-			} else {
-				continue;
-			}
-		}
-
-		if (response.compare("^SISW: 0,1\r\n") != 0) {
-			if (retry == 2) {
-				std::cout << "Internet service not available." << std::endl;
-				
-				return ErrType::INET_FAIL;
-			} else {
-				continue;
-			}
-		}
-
-		modem->SendCmd("^SISO?", response);
-		break;
-	}
-
-	valid = modem->SendCmd("^SIST=0", response, boost::posix_time::seconds(12), false);
-	if (!valid) {
-		timeouts++;
-
-		std::cout << "Failed to enter transparent mode." << std::endl;
-		return ErrType::SIST_FAIL;
-	}
-
-#if 0
-	for (int retry = 0; retry < 5; retry++) {
-		valid = modem->SendCmd("+SQNSD=3,0," + std::to_string(port) + ",\"" + host + "\"", response, boost::posix_time::seconds(12), false);
-		if (valid)
-			break;
-
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-	}
-	if (!valid)
-		std::cout << "Failed to initiate socket connection." << std::endl;
-		return ErrType::SOCKET_FAIL;
-#endif
-
-	valid = modem->SendData(requestLine);
-	if (!valid) {
-		std::cout << "Exiting Modem data mode (1) ..." << std::endl;
-		timeouts++;
-
-		modem->SendData("+");
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendData("+");
-		modem->SendData("+");
-		modem->SendData("+");
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("^SISC=0", response);
-
-		std::cout << "Failed to send HTTP request line." << std::endl;
-		
-		return ErrType::HTTP_FAIL;
-	}
-
-	if (!headers.empty()) {
-		valid = modem->SendData(headers);
-		if (!valid) {
-			std::cout << "Exiting Modem data mode (2) ..." << std::endl;
-			timeouts++;
-
-			modem->SendData("+");
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			modem->SendData("+");
-			modem->SendData("+");
-			modem->SendData("+");
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			modem->SendCmd("^SISC=0", response);
-
-			std::cout << "Failed to send HTTP request headers." << std::endl;
-			
-			return ErrType::HTTP_FAIL;
-		}
-	}
-
-	if (!messageBody.empty()) {
-		valid = modem->SendData(messageBody);
-		if (!valid) {
-			std::cout << "Exiting Modem data mode (3) ..." << std::endl;
-			timeouts++;
-
-			modem->SendData("+");
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			modem->SendData("+");
-			modem->SendData("+");
-			modem->SendData("+");
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			modem->SendCmd("^SISC=0", response);
-
-			std::cout << "Failed to send HTTP message body." << std::endl;
-			
-			return ErrType::HTTP_FAIL;
-		}
-	}
-
-#if 1
-	valid = modem->RecvData(data, boost::posix_time::seconds(30), NO_CARRIER);
-	if (!valid) {
-		std::cout << "Exiting Modem data mode (4) ..." << std::endl;
-		timeouts++;
-
-		modem->SendData("+");
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendData("+");
-		modem->SendData("+");
-		modem->SendData("+");
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("^SISC=0", response);
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-		modem->SendCmd("^SISC=0", response);
-
-		std::cout << "Failed to receive HTTP response." << std::endl;
-		
-		return ErrType::HTTP_FAIL;
-	}
-#else
-
-	valid = modem->SendCmd("^SISR=0,0", response);
-	if (!valid){
-		std::cout << "Failed to receive data." << std::endl;
-		
-		return ErrType::HTTP_FAIL;
-	}
-
-	valid = modem->SendCmd("^SISR=0,1000", response);
-	if (!valid){
-		std::cout << "Failed to receive data." << std::endl;
-		
-		return ErrType::HTTP_FAIL;
-	}
-#endif
-
-	timeouts = 0;
-
-	reply.host = host;
-	reply.port = port;
-	reply.requestLine = requestLine;
-	reply.request_headers = headers;
-	if (!messageBody.empty())
-		reply.request_messageBody = messageBody;
-
-	bool valid_http = data.find("HTTP/1.1 ") == 0;
-
-	if (valid_http && (data.length() >= 20)) {
-		reply.statusCode = std::stoi(data.substr(9, 3));
-		reply.reasonPhrase = data.substr(13, data.find("\r\n") - 13);
-		reply.response_headers = data.substr(data.find("\r\n") + 2, data.find("\r\n\r\n") - data.find("\r\n") - 2);
-		size_t index = data.find("\r\n\r\n");
-		if(index > 0){
-			reply.response_messageBody = data.substr(index + 4);
-		}
-	} else {
-		reply.statusCode = 502;
-		reply.reasonPhrase = "Bad Gateway";
-		reply.response_headers = "";
-		reply.response_messageBody = data;
-	}
-
-	modem->SendCmd("^SISC=0", response);
-
-	return reply.statusCode == 200 ? Modem::NONE : Modem::UNKNOWN;
-}
-*/

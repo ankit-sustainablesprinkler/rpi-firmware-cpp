@@ -68,7 +68,7 @@ bool getRunState(run_state_t &state, const bin_protocol::Schedule &schedule, con
 		for(int start : schedule.prgm_start_times)
 		{
 			//std::cout << "A  " << start << std::endl;
-			if(start < config.manual_start_time) start += 1440;
+			//if(start < config.manual_start_time) start += 1440;
 			
 			if(first_program_start_time < start) first_program_start_time = start;
 			

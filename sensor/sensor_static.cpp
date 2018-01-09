@@ -1,5 +1,6 @@
 #include "schedule.h"
 #include "sensor_static.h"
+#include "constants.h"
 
 #include <iostream>
 #include <fstream>
@@ -13,7 +14,7 @@
 #define EVENT_LOG FILE_PREFIX "event_log.txt"
 #define SENSOR_LOG FILE_PREFIX "sensor_log.txt"
 #define FILTER_DELAY 4 //seconds
-#define CURRENT_THRESHOLD 0.08 //None of the clocks in the office had a standby current of more than 60 mA
+#define CURRENT_THRESHOLD 0.06 //None of the clocks in the office had a standby current of more than 60 mA
 #define VOLTAGE_THRESHOLD 10.0 //abitrary value
 #define FLOW_THRESHOLD 1.0
 #define HYSTERESIS 0.05 //5%
@@ -37,6 +38,7 @@ void sensorInit()
 	sensorSetup();
 	flowSetSampleSize(1);
 	digitalWrite(PIN_FAULT_CLEAR, HIGH);
+	digitalWrite(PIN_FAULT_CLEAR, LOW);
 }
 
 void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule &schedule, bin_protocol::Config &config, bin_protocol::FlowConfiguration &flow_configuration)
@@ -49,6 +51,33 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 	
 	float current_threshold = config.current_on_thr / 1000.0;
 	if(current_threshold <= 0.0) current_threshold = CURRENT_THRESHOLD;
+
+	static int last_ovc_trigger = 0;
+	static bool ovc_state = false;
+	static bool ovc_prev_state = false;
+	ovc_state = digitalRead(PIN_SYS_FAULT);
+
+	if(ovc_state){
+		if(!ovc_prev_state){
+			//ovc_prev_state = true;
+			last_ovc_trigger = time(nullptr);
+			if(state.var.ovc_trigger_count < 3){
+				state.var.ovc_trigger_count++;
+				if(state.var.ovc_trigger_count == 3){
+					state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>((int)last_ovc_trigger, 'F',std::string("OVC fault")));
+				}
+			}
+			std::cout << "OVC Fault triggered " << state.var.ovc_trigger_count << std::endl;
+		} else if(time(nullptr) - last_ovc_trigger > 10 && state.var.ovc_trigger_count < 3){
+			ovc_state = false;
+			//ovc_prev_state = false;
+			digitalWrite(PIN_FAULT_CLEAR, HIGH);
+			digitalWrite(PIN_FAULT_CLEAR, LOW);
+		}
+	} else {
+		state.var.ovc_trigger_count = 0;
+	}
+	ovc_prev_state = ovc_state;
 
 	if(config.flow_fitted){
 		if(flowGet(flow)){

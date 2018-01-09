@@ -632,6 +632,7 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 		sensor::resetVoltage();
 		sensor::resetCurrent();
 		sensor::resetFlow();
+		s3state.var.ovc_trigger_count = 0;
 		memcpy(&s3state.var.previous_state, &state, sizeof(state));
 	}
 //	cout << "before time: " << s3state.feedback[s3state.var.current_feedback].before_time << endl;

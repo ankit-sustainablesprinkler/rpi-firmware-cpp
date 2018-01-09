@@ -40,6 +40,7 @@ struct s3state_var_t {
 	time_t high_flow_time;
 	bool very_high_flow;
 	time_t very_high_flow_time;
+	int ovc_trigger_count;
 };
 
 struct s3state_t {

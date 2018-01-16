@@ -622,7 +622,9 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 						<< ", Flow: " << 
 						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].flow=sensor::flow_average.getAverage())
 						<< ", Run time: " << 
-						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].duration=(sensor::curr_on_time+30)/60) << endl;
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].duration=(sensor::curr_on_time+30)/60)
+						<< ", Volt Run time: " << 
+						(s3state.feedback[s3state.var.current_feedback].zone_runs[s3state.var.previous_state.program][s3state.var.previous_state.zone].volt_duration=(sensor::volt_on_time+30)/60) << endl;
 					}
 				}
 				break;

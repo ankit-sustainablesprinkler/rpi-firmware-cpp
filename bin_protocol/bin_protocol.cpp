@@ -614,7 +614,7 @@ std::vector<uint8_t> Feedback::toBinary() const
 					if(val < 0) val = 0;
 					data.push_back(val);
 					data.push_back(program[i].duration);
-					data.push_back(program[i].run);
+					data.push_back(program[i].volt_duration);
 				} else {
 					data.push_back(0);
 					data.push_back(0);
@@ -677,7 +677,7 @@ bool Feedback::fromBinary(const std::vector<uint8_t> &data){
 						zone_runs[i][j].current = data[offset + (i * zone_count + j)*6+ 2]/100.0f;
 						zone_runs[i][j].flow = data[offset + (i * zone_count + j)*6 + 3];
 						zone_runs[i][j].duration = data[offset + (i * zone_count + j)*6 + 4];
-						zone_runs[i][j].run = (bool) data[offset + (i * zone_count + j)*6 + 5];
+						zone_runs[i][j].volt_duration = data[offset + (i * zone_count + j)*6 + 5];
 					}
 				}
 				offset += prgm_count * zone_count * 6;

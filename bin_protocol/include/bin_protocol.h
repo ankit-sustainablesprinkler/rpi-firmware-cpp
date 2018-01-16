@@ -190,7 +190,7 @@ struct feedback_log_point_t
 	float flow;
 	float xfmr_voltage;
 	uint8_t duration;
-	bool run;
+	uint8_t volt_duration;
 };
 
 class Feedback

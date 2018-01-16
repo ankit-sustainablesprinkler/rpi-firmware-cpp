@@ -9,8 +9,9 @@ time_t schedule_getMidnight(const bin_protocol::Schedule &schedule, const bin_pr
 	int timezone = -5; // this needs to be in config
 
 	if(config.use_dst) timezone += 1;
+	time_t now_tz = now + timezone*3600;
 
-	struct tm * now_date = localtime(&now);
+	struct tm * now_date = localtime(&now_tz);
 	struct tm midnight_date;
 	memset(&midnight_date, 0, sizeof(midnight_date));
 	midnight_date.tm_year = now_date->tm_year;

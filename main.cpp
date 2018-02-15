@@ -69,7 +69,7 @@ Modem modem;
 Schedule new_schedule;
 Config new_Config;
 bool schedule_ready = false, config_ready = false, flow_config_ready = false, firstBoot = true, feedback_ready = false, 
-     flow_feedback_ready = false, heartbeat_sent = false, perform_calibration = false;
+     flow_feedback_ready = false, heartbeat_sent = false, perform_calibration = false, post_run_feedback_ready = false, post_run_flow_feedback_ready = false;
 
 struct sample_t{
 	float current;
@@ -204,6 +204,14 @@ int main(int argc, char **argv)
 			for(int i = 0; i < schedule.zone_duration.size(); i++){
 				s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
 			}
+		}
+
+		if(!has_schedule){
+				cout << "Allowing OTA" << endl;
+				ofstream ota_file(OTA_SYNC_FILE);
+				if(ota_file.is_open()){
+					ota_file.close();
+				}
 		}
 
 		//send first heartbeat
@@ -415,11 +423,22 @@ int main(int argc, char **argv)
 					s3state.feedback[!s3state.var.current_feedback].header = header;
 					message_string = s3state.feedback[!s3state.var.current_feedback].toBinary();
 					//base64_encode(s3state.feedback[!s3state.var.current_feedback].toBinary(), message_string);
+				} else if(post_run_feedback_ready){
+					auto header = getHeader(bin_protocol::FEEDBACK);
+					header.timestamp = s3state.var.current_feedback_time;
+					s3state.feedback[s3state.var.current_feedback].header = header;
+					message_string = s3state.feedback[s3state.var.current_feedback].toBinary();
+					//base64_encode(s3state.feedback[!s3state.var.current_feedback].toBinary(), message_string);
 				} else if(flow_feedback_ready){
 					auto header = getHeader(bin_protocol::FLOW);
 					header.timestamp = s3state.var.previous_flow_feedback_time;
 					s3state.flow_feedback[!s3state.var.current_flow_feedback].header = header;
 					message_string = s3state.flow_feedback[!s3state.var.current_flow_feedback].toBinary();
+				} else if(post_run_flow_feedback_ready){
+					auto header = getHeader(bin_protocol::FLOW);
+					header.timestamp = s3state.var.current_flow_feedback_time;
+					s3state.flow_feedback[s3state.var.current_flow_feedback].header = header;
+					message_string = s3state.flow_feedback[s3state.var.current_flow_feedback].toBinary();
 				} else {
 					
 					Heartbeat heartbeat = getHeartbeat(extra_content);
@@ -578,6 +597,10 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 				ofstream ota_file(OTA_SYNC_FILE);
 				if(ota_file.is_open()){
 					ota_file.close();
+				}
+				if(s3state.var.previous_state.type == ZONE){
+					post_run_flow_feedback_ready = true;
+					post_run_feedback_ready = true;
 				}
 				break;
 			}
@@ -772,8 +795,14 @@ void modemThread(bool RTC_fitted)
 			} catch (...) { }
 			//this_thread::sleep_for(chrono::seconds(10));
 			if(error == Modem::NONE){
-				if(msg_type == bin_protocol::FEEDBACK) feedback_ready = false;// reset feedback ready
-				if(msg_type == bin_protocol::FLOW) flow_feedback_ready = false;// reset flow feedback ready
+				if(msg_type == bin_protocol::FEEDBACK){
+					feedback_ready = false;// reset feedback ready
+					post_run_feedback_ready = false;
+				}
+				if(msg_type == bin_protocol::FLOW){
+					flow_feedback_ready = false;// reset flow feedback ready
+					post_run_flow_feedback_ready = false;
+				}
 				modem_fail_count = 0;
 				int type;
 				modem_IO_mutex.lock();

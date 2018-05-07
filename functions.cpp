@@ -312,88 +312,92 @@ bool handleHBResponse(const std::string &response, int &type)
 {
 	bool result = false;
 	std::vector<uint8_t> data;
-	if(base64_decode(data, response) == BASE64_NO_ERR){
-		if(bin_protocol::isValidData(data)){
-			type = bin_protocol::getTypefromBinary(data);
-			switch(type){
-				case bin_protocol::HEADER:{
-					//update time
-					bin_protocol::Header header;
-					if(header.fromBinary(data)){
-						result = true;
-						setSystemTime(header.timestamp);
-					}
-					break;
-				}
-				case bin_protocol::SCHEDULE:{
-					bin_protocol::Schedule schedule;
-					if(schedule.fromBinary(data)){
-						result = true;
-						setSystemTime(schedule.header.timestamp);
-						std::cout << "SAVING SCHEDULE" << std::endl;
-						saveSchedule(schedule);
-					}
-					break;
-				}
-				case bin_protocol::CONFIG:{
-					bin_protocol::Config config;
-					if(config.fromBinary(data)){
-						result = true;
-						setSystemTime(config.header.timestamp);
-						std::cout << "SAVING CONFIG" << std::endl;
-						saveConfig(config);
-					}
-					break;
-				}
-				case bin_protocol::FLOW_CONFIG:{
-					bin_protocol::FlowConfiguration flow_config;
-					if(flow_config.fromBinary(data)){
-						result = true;
-						setSystemTime(flow_config.header.timestamp);
-						std::cout << "SAVING FLOW CONFIG" << std::endl;
-						saveFlowConfig(flow_config);
-					}
-					break;
-				}
-				case bin_protocol::FIRMWARE:{
-					
-					bin_protocol::Firmware firmware;
-					char* firmware_data = NULL;
-					int firmware_size;
-					if(firmware.fromBinary(data, firmware_data, firmware_size)){
-						std::ofstream new_firmware(FIRMWARE_FILE ".gz", std::ofstream::binary);
-						new_firmware.write(firmware_data, firmware_size);
-						new_firmware.flush();
-						new_firmware.close();
-						auto md5_string = runCommand("md5sum " FIRMWARE_FILE ".gz");
-						std::stringstream converter(md5_string.substr(0,16));
-						uint64_t md5_64;
-						converter >> std::hex >> md5_64;
-						if(firmware.md5_64 == md5_64){
-							std::cout << "Valid firmware" << std::endl;
-							std::string result = runCommand("gunzip -f " FIRMWARE_FILE ".gz");
-							std::cout << result << std::endl;
-							result = runCommand("chmod 755 " FIRMWARE_FILE);
-							std::cout << result << std::endl;
+	std::stringstream ss(response);
+	std::string packet;
+	while(ss >> packet){
+		if(base64_decode(data, packet) == BASE64_NO_ERR){
+			if(bin_protocol::isValidData(data)){
+				type = bin_protocol::getTypefromBinary(data);
+				switch(type){
+					case bin_protocol::HEADER:{
+						//update time
+						bin_protocol::Header header;
+						if(header.fromBinary(data)){
+							result = true;
+							setSystemTime(header.timestamp);
 						}
+						break;
 					}
-					delete[] firmware_data;
-					firmware_data = NULL;
-					break;
-				}
-				case bin_protocol::FLOW_CAL:{
-					bin_protocol::CalibrationSetup calibration;
-					if(calibration.fromBinary(data)){
-						result = true;
-						setSystemTime(calibration.header.timestamp);
-						std::cout << "SAVING CALIBRATION" << std::endl;
-						saveCalibration(calibration);
+					case bin_protocol::SCHEDULE:{
+						bin_protocol::Schedule schedule;
+						if(schedule.fromBinary(data)){
+							result = true;
+							setSystemTime(schedule.header.timestamp);
+							std::cout << "SAVING SCHEDULE" << std::endl;
+							saveSchedule(schedule);
+						}
+						break;
+					}
+					case bin_protocol::CONFIG:{
+						bin_protocol::Config config;
+						if(config.fromBinary(data)){
+							result = true;
+							setSystemTime(config.header.timestamp);
+							std::cout << "SAVING CONFIG" << std::endl;
+							saveConfig(config);
+						}
+						break;
+					}
+					case bin_protocol::FLOW_CONFIG:{
+						bin_protocol::FlowConfiguration flow_config;
+						if(flow_config.fromBinary(data)){
+							result = true;
+							setSystemTime(flow_config.header.timestamp);
+							std::cout << "SAVING FLOW CONFIG" << std::endl;
+							saveFlowConfig(flow_config);
+						}
+						break;
+					}
+					case bin_protocol::FIRMWARE:{
+						
+						bin_protocol::Firmware firmware;
+						char* firmware_data = NULL;
+						int firmware_size;
+						if(firmware.fromBinary(data, firmware_data, firmware_size)){
+							std::ofstream new_firmware(FIRMWARE_FILE ".gz", std::ofstream::binary);
+							new_firmware.write(firmware_data, firmware_size);
+							new_firmware.flush();
+							new_firmware.close();
+							auto md5_string = runCommand("md5sum " FIRMWARE_FILE ".gz");
+							std::stringstream converter(md5_string.substr(0,16));
+							uint64_t md5_64;
+							converter >> std::hex >> md5_64;
+							if(firmware.md5_64 == md5_64){
+								std::cout << "Valid firmware" << std::endl;
+								std::string result = runCommand("gunzip -f " FIRMWARE_FILE ".gz");
+								std::cout << result << std::endl;
+								result = runCommand("chmod 755 " FIRMWARE_FILE);
+								std::cout << result << std::endl;
+							}
+						}
+						delete[] firmware_data;
+						firmware_data = NULL;
+						break;
+					}
+					case bin_protocol::FLOW_CAL:{
+						bin_protocol::CalibrationSetup calibration;
+						if(calibration.fromBinary(data)){
+							result = true;
+							setSystemTime(calibration.header.timestamp);
+							std::cout << "SAVING CALIBRATION" << std::endl;
+							saveCalibration(calibration);
+						}
 					}
 				}
 			}
+		} else {
+			std::cout << "Invalid base 64 string: \"" << response << "\"" << std::endl;
 		}
-	} else {
-		std::cout << "Invalid base 64 string: \"" << response << "\"" << std::endl;
 	}
 	return result;
 }

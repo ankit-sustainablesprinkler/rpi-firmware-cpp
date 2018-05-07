@@ -375,7 +375,10 @@ bool flowGet(float &frequency)
 	digitalWrite(11, LOW);
 	wiringPiSPIDataRW(1, rx, 5);
 	digitalWrite(11, HIGH);
-
+	/*for(int i = 0; i < 5; i++){
+		std::cout << std::hex << (int)rx[i] << " ";
+	}*/
+	//std::cout << std::endl;
 	if(rx[1] != 0x02) return false;
 	if(rx[4] != 0){
 		flowSetSampleSize(1);

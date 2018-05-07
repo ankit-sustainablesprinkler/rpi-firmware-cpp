@@ -598,10 +598,8 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 				if(ota_file.is_open()){
 					ota_file.close();
 				}
-				if(s3state.var.previous_state.type == ZONE){
-					post_run_flow_feedback_ready = true;
-					post_run_feedback_ready = true;
-				}
+				post_run_flow_feedback_ready = true;
+				post_run_feedback_ready = true;
 				break;
 			}
 			case MANUAL:

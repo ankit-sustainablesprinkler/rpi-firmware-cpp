@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define FIRMWARE_VERSION 10
+#define FIRMWARE_VERSION 11
 
 #define PIN_WDT_RESET 2
 #define PIN_RELAY 3
@@ -11,7 +11,7 @@
 
 #define DEBUG_MODEM
 
-#define USE_DEBUG_SERVER
+//#define USE_DEBUG_SERVER
 //#define USE_OFFICE_SERVER
 
 #ifdef USE_DEBUG_SERVER
@@ -24,8 +24,8 @@
 #define SERVER_PATH "/~s3staging/3s/api/bin"
 #else
 #define SERVER_HOST "s-3.us" 
-#define SERVER_PORT 80
-#define SERVER_PATH ""
+#define SERVER_PORT 8080
+#define SERVER_PATH "/api/bin"
 #endif
 
 //file definitions

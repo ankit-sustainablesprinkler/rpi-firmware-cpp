@@ -81,7 +81,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 
 	if(config.flow_fitted){
 		if(flowGet(flow)){
-			
 			//std::cout <<  " Flow before: " << flow << std::endl;
 			if(flow != 0){
 				flow = flow_configuration.K*(flow + flow_configuration.offset);
@@ -111,71 +110,70 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 				} else {
 					blocked_pump_detected_count = 0;
 				}
-
-				if(flow > flow_configuration.flow_thr_min && solenoid_current < current_threshold){
-					if(!state.var.unscheduled_flow){
-						unscheduled_flow_count ++;
-						if(unscheduled_flow_count > 60){
-							std::cout << "Leak detected" << std::endl;
-							state.var.unscheduled_flow_time = time(NULL);
-							state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.unscheduled_flow_time, 'U',"Flow: " + std::to_string(per_minute_flow.getAverage())));
-							state.var.unscheduled_flow = true;
+			}
+			if(flow > flow_configuration.flow_thr_min && solenoid_current < current_threshold){
+				if(!state.var.unscheduled_flow){
+					unscheduled_flow_count ++;
+					if(unscheduled_flow_count > 60){
+						std::cout << "Leak detected" << std::endl;
+						state.var.unscheduled_flow_time = time(NULL);
+						state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.unscheduled_flow_time, 'U',"Flow: " + std::to_string(per_minute_flow.getAverage())));
+						state.var.unscheduled_flow = true;
+					}
+				}
+			} else {
+				unscheduled_flow_count = 0;
+			}
+			if(run_state.type == ZONE){
+				bool calibrated = false;
+				float threshold = 0;
+				for(auto value : state.cal_result.flow_values){
+					if(run_state.zone == std::get<0>(value)){
+						threshold = std::get<1>(value);
+						calibrated = true;
+						break;
+					}
+				}
+				//std::cout << calibrated << "  " << (1+flow_configuration.flow_thr_low/100.0) << std::endl;
+				if(calibrated && flow < (1-flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > current_threshold){
+					if(!state.var.low_flow){
+						low_flow_count ++;
+						if(low_flow_count > flow_configuration.flow_count_thr){
+							std::cout << "Low flow detected" << std::endl;
+							state.var.low_flow_time = time(NULL);
+							state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.low_flow_time, 'L',"Flow: " + std::to_string(flow)));
+							state.var.low_flow = true;
 						}
 					}
 				} else {
-					unscheduled_flow_count = 0;
+					low_flow_count = 0;
 				}
-				if(run_state.type == ZONE){
-					bool calibrated = false;
-					float threshold = 0;
-					for(auto value : state.cal_result.flow_values){
-						if(run_state.zone == std::get<0>(value)){
-							threshold = std::get<1>(value);
-							calibrated = true;
-							break;
+				if(calibrated && flow > (1+flow_configuration.flow_thr_low/50.0)*threshold && solenoid_current > current_threshold){
+					if(!state.var.very_high_flow){
+						very_high_flow_count ++;
+						if(very_high_flow_count > flow_configuration.flow_count_thr){
+							std::cout << "very high flow detected" << std::endl;
+							state.var.very_high_flow_time = time(NULL);
+							state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.very_high_flow_time, 'V',"Flow: " + std::to_string(flow)));
+							state.var.very_high_flow = true;
 						}
 					}
-					//std::cout << calibrated << "  " << (1+flow_configuration.flow_thr_low/100.0) << std::endl;
-					if(calibrated && flow < (1-flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > current_threshold){
-						if(!state.var.low_flow){
-							low_flow_count ++;
-							if(low_flow_count > flow_configuration.flow_count_thr){
-								std::cout << "Low flow detected" << std::endl;
-								state.var.low_flow_time = time(NULL);
-								state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.low_flow_time, 'L',"Flow: " + std::to_string(flow)));
-								state.var.low_flow = true;
-							}
-						}
-					} else {
-						low_flow_count = 0;
-					}
-					if(calibrated && flow > (1+flow_configuration.flow_thr_low/50.0)*threshold && solenoid_current > current_threshold){
-						if(!state.var.very_high_flow){
-							very_high_flow_count ++;
-							if(very_high_flow_count > flow_configuration.flow_count_thr){
-								std::cout << "very high flow detected" << std::endl;
-								state.var.very_high_flow_time = time(NULL);
-								state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.very_high_flow_time, 'V',"Flow: " + std::to_string(flow)));
-								state.var.very_high_flow = true;
-							}
-						}
-					} else {
-						very_high_flow_count = 0;
-					}
+				} else {
+					very_high_flow_count = 0;
+				}
 
-					if(calibrated && flow > (1+flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > current_threshold){
-						if(!state.var.high_flow){
-							high_flow_count ++;
-							if(high_flow_count > flow_configuration.flow_count_thr){
-								std::cout << "high flow detected" << std::endl;
-								state.var.high_flow_time = time(NULL);
-								state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.high_flow_time, 'H',"Flow: " + std::to_string(flow)));
-								state.var.high_flow = true;
-							}
+				if(calibrated && flow > (1+flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > current_threshold){
+					if(!state.var.high_flow){
+						high_flow_count ++;
+						if(high_flow_count > flow_configuration.flow_count_thr){
+							std::cout << "high flow detected" << std::endl;
+							state.var.high_flow_time = time(NULL);
+							state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.high_flow_time, 'H',"Flow: " + std::to_string(flow)));
+							state.var.high_flow = true;
 						}
-					} else {
-						high_flow_count = 0;
 					}
+				} else {
+					high_flow_count = 0;
 				}
 			}
 		}

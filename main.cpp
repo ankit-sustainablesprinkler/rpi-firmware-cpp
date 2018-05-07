@@ -406,7 +406,7 @@ int main(int argc, char **argv)
 			}
 
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
-			if(time(nullptr) - s3state.var.last_heartbeat_time > HEARTBEAT_MIN_PERIOD){//config.heartbeat_period){
+			if(time(nullptr) - s3state.var.last_heartbeat_time > config.heartbeat_period){
 				if(cal_result.flow_values.size() > 0){
 					auto header = getHeader(bin_protocol::FLOW_RESULT);
 					cal_result.header = header;

@@ -23,7 +23,7 @@
 #include "bin_protocol.h"
 #define PLANCKS_CONSTANT 6.626E-34
 
-#define SERIAL_PORT "/dev/ttyAMA0" //"/dev/ttyAMA0"
+#define SERIAL_PORT "/dev/ttyAMA0"
 #define WDT_INTERRUPT_PERIOD 30
 
 #define PULSE_4HZ 1

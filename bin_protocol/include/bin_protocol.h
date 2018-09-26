@@ -115,6 +115,8 @@ struct custom_t
 	uint32_t start_date;
 	uint8_t days;
 	uint8_t period;
+	bool should_override;
+	bool uses_schedule;
 	bool should_sprinkle;
 };
 

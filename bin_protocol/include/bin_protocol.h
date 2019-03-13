@@ -112,7 +112,7 @@ public:
 struct custom_t
 {
 	std::vector<std::vector<uint8_t> > zones;
-	uint32_t start_date;
+	int32_t start_date;
 	uint8_t days;
 	uint8_t period;
 	bool should_override;
@@ -161,7 +161,7 @@ public:
 	bool pump_fitted;
 	uint8_t time_drift_thr;
 	bool use_dst;
-	uint8_t current_on_thr;
+	uint16_t current_on_thr;
 };
 /*
 class Config

@@ -16,6 +16,7 @@
 #define FILTER_DELAY 4 //seconds
 #define CURRENT_THRESHOLD 0.06 //None of the clocks in the office had a standby current of more than 60 mA
 #define VOLTAGE_THRESHOLD 10.0 //abitrary value
+#define BLOCKED_PUMP_THRESOLD 60
 #define FLOW_THRESHOLD 1.0
 #define HYSTERESIS 0.05 //5%
 namespace sensor{
@@ -100,7 +101,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 				if(flow < flow_configuration.flow_thr_min && solenoid_current > current_threshold){
 					if(!state.var.blocked_pump_detected){
 						blocked_pump_detected_count ++;
-						if(blocked_pump_detected_count > 10){
+						if(blocked_pump_detected_count > BLOCKED_PUMP_THRESOLD){
 							std::cout << "Blocked pump detected" << std::endl;
 							state.var.blocked_pump_time = time(NULL);
 							state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.blocked_pump_time, 'P',""));

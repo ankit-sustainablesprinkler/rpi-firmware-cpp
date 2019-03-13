@@ -529,7 +529,8 @@ std::vector<uint8_t> Config::toBinary() const
 	data.push_back((this->station_delay >> 8) & 0xFF);
 	data.push_back(this->time_drift_thr);
 	data.push_back((this->remain_closed ? 0x01 : 0x00) | (this->flow_fitted ? 0x02 : 0x00) | (this->pump_fitted ? 0x04 : 0x00) | (this->use_dst ? 0x08 : 0x00));
-	data.push_back((this->current_on_thr / 10) & 0xFF);
+	data.push_back((this->current_on_thr) & 0xFF);
+	//TODO data.push_back((this->current_on_thr / 10) & 0xFF);
 	//data.push_back(this->timezone);
 
 	//this->header.content_length = data.size();
@@ -557,7 +558,8 @@ bool Config::fromBinary(const std::vector<uint8_t> &data)
 				this->flow_fitted = (data[HEADER_SIZE + 12] & 0x02) != 0x00;
 				this->pump_fitted = (data[HEADER_SIZE + 12] & 0x04) != 0x00;
 				this->use_dst = (data[HEADER_SIZE + 12] & 0x08) != 0x00;
-				this->current_on_thr = data[HEADER_SIZE+13] * 10;
+				this->current_on_thr = data[HEADER_SIZE+13];
+				//TODO this->current_on_thr = data[HEADER_SIZE+13] * 10;
 				return true;
 			} else return false;
 		} else return false;

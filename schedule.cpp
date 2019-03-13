@@ -44,10 +44,33 @@ bool isWateringNeeded(const run_state_t &state, const bin_protocol::Schedule &sc
 	time_t manual_end_time = manual_start_time + config.manual_end_time * 60;	//manual end time is stored as offset in minutes from start time
 	//std::cout << "manual_start_time = " << manual_start_time << "  manual_end_time " << manual_end_time << std::endl;
 	time_t effective_date = schedule.effective_date;
+	//std::cout << "POOP A" << std::endl;
 	if(manual_start_time <= now && now < manual_end_time){ //Manual run period so swtich relay on
 		//std::cout << "Manual2" << std::endl;
+		//std::cout << "POOP B" << std::endl;
 		result = config.remain_closed;// mechanical systems need to open during manual water.
+
+		//Water Now Feature
+		if(!config.remain_closed){
+			for(auto custom : schedule.custom_programs)
+			{
+				int time_diff_mod = (midnight - custom.start_date) % 86400; //programs which are not integer multiples of 24 hours are water now
+				if(time_diff_mod && schedule.prgm_start_times.size() > 0){
+					if(custom.start_date > midnight){
+						run_state_t new_state;
+						int modified_time = now + schedule.prgm_start_times[0] *60 - custom.start_date + midnight;
+						getRunState(new_state, schedule, config, modified_time, midnight);
+						if((new_state.type == ZONE || new_state.type == DELAY) && new_state.program == 0) //Normal Program A run
+						{
+							if(new_state.type == DELAY) result = false; //Open relay for indexing valve systems
+							else result = true;
+						}
+					}
+				}
+			}
+		}
 	}else result = isTimeToWater(state, schedule, config, now, midnight);
+	//std::cout << "POOP C" << std::endl;
 	return result;
 }
 
@@ -136,31 +159,51 @@ bool isTimeToWater(const run_state_t &state, const bin_protocol::Schedule &sched
 	//TODO add flag to indicate legal days to run and shift effective date when conflict occurs
 	//if schedule.is_shift:
 	int day_of_week = (now / 86400 + 3) % 7; //since UNIX epoch was on a thursday we add 3 to the day so that the 0 maps to monday in the enum
-	int difference = (midnight - schedule.effective_date)/86400;
+	int difference = (int)roundf((midnight - schedule.effective_date)/86400.0);
+	int n = schedule.days; //system runs every nth day.  for a 2 day skip we run once every 3 days
+	if(n <= 0) n = 1;
 
 	if(now >= schedule.effective_date){
 		if(schedule.days&0x80){
 			if(schedule.days&(2<day_of_week)) 
 				is_scheduled_day = true;
 		} else {
-			int n = schedule.days; //system runs every nth day.  for a 2 day skip we run once every 3 days
-			if(n <= 0) n = 1;
 			if(difference % n == 0) //is this an nth day?
 				is_scheduled_day = true;
 		}
 	}
 	
 	//std::cout << "type " << type << std::endl;
-	if(state.type == ZONE || state.type == DELAY)
+
+	if(state.type == ZONE || state.type == DELAY) //Normal run
 	{
 		bool custom_run = false;
 		bool custom_run_active = false;
 		bool custom_should_spinkle = true;
-		for(auto custom : schedule.custom_programs)
-		{
-			int time_diff_days = (int)roundf((midnight - custom.start_date)/86400.0);
-			if(time_diff_days < 0) continue;//custom program is in the future
-			else{
+		for(auto custom : schedule.custom_programs){
+			int time_diff_mod = (midnight - custom.start_date) % 86400;
+			if(time_diff_mod){ // bug where server does not use the dst setting for the custom program start date.
+				if(!((midnight - custom.start_date + 3600) % 86400)){
+					custom.start_date -= 3600;
+					time_diff_mod = 0;
+				} else if(!((midnight - custom.start_date - 3600) % 86400)){
+					custom.start_date += 3600;
+					time_diff_mod = 0;
+				}
+			}
+
+			if(time_diff_mod == 0){
+				int time_diff_days = (midnight - custom.start_date)/86400; // programs which are not integer multiples of 24 hours are water now and are ignored here
+				if(custom.period < 1) custom.period = 1;
+				if(time_diff_days < 0) continue;//custom program is in the future or not schedule
+				
+				if(!custom.uses_schedule && !custom.should_override && time_diff_days%custom.period) continue; //custom program runs according to custom period regardless of schedule
+
+				bool no_run_days = is_scheduled_day || (difference - custom.period)%n;
+				if(custom.should_override && (custom.uses_schedule || no_run_days)) continue; //schedule overrides custom program on these days, so skip
+
+				if(custom.uses_schedule && !is_scheduled_day) continue; //custom program runs only on schedule days so skip all others
+				
 				if(time_diff_days < custom.days) { //program is active
 					int index = 0;
 					for(auto program : custom.zones){

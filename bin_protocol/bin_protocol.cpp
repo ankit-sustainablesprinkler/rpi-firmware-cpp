@@ -379,7 +379,7 @@ std::vector<uint8_t> Schedule::toBinary() const
 			data.push_back((start_date >> 16) & 0xFF);
 			data.push_back((start_date >> 24) & 0xFF);
 			data.push_back(days & 0xFF);
-			data.push_back(((days>>8) & 0x01) | ((should_spinkle << 1) & 0x02) | (custom.should_override << 2) | (custom.uses_schedule << 3) | ((period << 4) & 0xF0));
+			data.push_back(((days>>8) & 0x01) | ((should_spinkle << 1) & 0x02) | (custom.should_override << 6) | (custom.uses_schedule << 7) | ((period << 2) & 0x3C));
 			data.insert(data.end(),zone_data.begin(), zone_data.end());
 			data[size_idx]++;
 		}
@@ -440,9 +440,9 @@ bool Schedule::fromBinary(const std::vector<uint8_t> &data)
 					custom.start_date = data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
 					custom.days = data[offset + 4] | ((data[offset + 5] & 0x01) << 8);
 					custom.should_sprinkle = (data[offset + 5] & 0x02) == 0 ? false : true;
-					custom.should_override = (data[offset + 5] & 0x04) == 0 ? false : true;
-					custom.uses_schedule = (data[offset + 5] & 0x08) == 0 ? false : true;
-					custom.period = (data[offset + 5] >> 4) & 0x0F;
+					custom.should_override = (data[offset + 5] & 0x40) == 0 ? false : true;
+					custom.uses_schedule = (data[offset + 5] & 0x80) == 0 ? false : true;
+					custom.period = (data[offset + 5] >> 2) & 0x0F;
 					offset += 6;
 					int program_idx = 0;
 					while(program_idx < program_count)

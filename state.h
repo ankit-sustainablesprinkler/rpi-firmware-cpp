@@ -4,11 +4,14 @@
 
 #include "schedule.h"
 #define STATE_FILE_PREFIX "/home/pi/firmware/main/etc/"
+#define STATE_FILE_PREFIX_OLD "/home/pi/firmware/main/old-etc/"
 #define STATE_FILE STATE_FILE_PREFIX "state"
+#define STATE_FILE_OLD STATE_FILE_PREFIX_OLD "state"
 #define FEEDBACK_FILE STATE_FILE_PREFIX "feedback"
 #define FLOW_FEEDBACK_FILE STATE_FILE_PREFIX "flow_feedback"
 #define ALERT_FEEDBACK_FILE STATE_FILE_PREFIX "alert_feedback"
 #define FLOW_CAL_RESULTS_FILE STATE_FILE_PREFIX "calibration_results"
+#define FLOW_CAL_RESULTS_FILE_OLD STATE_FILE_PREFIX_OLD "calibration_results"
 
 namespace bin_protocol{
 	class Feedback;

@@ -14,6 +14,10 @@ bool state_getState(s3state_t &state)
 
 	std::ifstream state_file, feedback_file, flow_feedback_file, alert_feedback_file, flow_cal_file;
 	state_file.open(STATE_FILE, std::ifstream::binary | std::ifstream::in);
+	if(!state_file.is_open()){
+		state_file.open(STATE_FILE_OLD, std::ifstream::binary | std::ifstream::in);
+		std::cout << "Using old state" << std::endl;
+	}
 	if(state_file.is_open()){
 		long begin, end;
 		begin = state_file.tellg();
@@ -85,6 +89,10 @@ bool state_getState(s3state_t &state)
 	}
 
 	flow_cal_file.open(FLOW_CAL_RESULTS_FILE, std::ifstream::in);
+	if(!flow_cal_file.is_open()){
+		flow_cal_file.open(FLOW_CAL_RESULTS_FILE_OLD, std::ifstream::in);
+		std::cout << "Using old calibration" << std::endl;
+	}
 	if(flow_cal_file.is_open()){
 		std::string b64_string;
 		if(std::getline(flow_cal_file, b64_string)){

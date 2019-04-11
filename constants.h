@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define FIRMWARE_VERSION 16
+#define FIRMWARE_VERSION 18
 
 #define PIN_WDT_RESET 2
 #define PIN_RELAY 3
@@ -11,7 +11,7 @@
 
 #define DEBUG_MODEM
 
-#define USE_STAGING_SERVER
+//#define USE_STAGING_SERVER
 //#define USE_OFFICE_SERVER
 
 #ifdef USE_STAGING_SERVER

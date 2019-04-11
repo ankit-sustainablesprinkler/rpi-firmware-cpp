@@ -44,7 +44,7 @@ void sensorInit()
 
 void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule &schedule, bin_protocol::Config &config, bin_protocol::FlowConfiguration &flow_configuration)
 {
-	float voltage, solenoid_voltage, solenoid_current, flow;
+	float voltage, solenoid_voltage, solenoid_current, flow, flow_raw;
 	meterGetValues(voltage, solenoid_voltage, solenoid_current);
 	current_average.addValue(solenoid_current);
 	voltage_average.addValue(solenoid_voltage);
@@ -81,10 +81,11 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 	ovc_prev_state = ovc_state;
 
 	if(config.flow_fitted){
-		if(flowGet(flow)){
+		if(flowGet(flow_raw)){
 			//std::cout <<  " Flow before: " << flow << std::endl;
-			if(flow != 0){
-				flow = flow_configuration.K*(flow + flow_configuration.offset);
+			if(flow_raw != 0){
+				flow = flow_configuration.K*(flow_raw + flow_configuration.offset);
+				//std::cout << flow << std::endl;
 			}
 			
 			static int blocked_pump_detected_count = 0;
@@ -112,8 +113,10 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 					blocked_pump_detected_count = 0;
 				}
 			}
-			if(flow > flow_configuration.flow_thr_min && solenoid_current < current_threshold){
+			if(flow_raw > 0 && solenoid_current < current_threshold){
+				//std::cout << "Here" << std::endl;
 				if(!state.var.unscheduled_flow){
+				//	std::cout << "still here" << std::endl;
 					unscheduled_flow_count ++;
 					if(unscheduled_flow_count > 60){
 						std::cout << "Leak detected" << std::endl;
@@ -124,6 +127,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 				}
 			} else {
 				unscheduled_flow_count = 0;
+				state.var.unscheduled_flow = false;
 			}
 			if(run_state.type == ZONE){
 				bool calibrated = false;

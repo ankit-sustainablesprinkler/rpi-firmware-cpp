@@ -757,7 +757,7 @@ std::vector<uint8_t> FlowFeedback::toBinary() const
 	for(auto sample : this->samples){
 		float flow = std::get<1>(sample);
 		int32_t t = std::get<0>(sample) - this->header.timestamp;
-		if(t >= 0 and t < 86400){
+		if(t >= 0 and t < (1<<17)){ //17 bits are reserved for the timestamp offset which is good for 36 hours
 			count++;
 			if(flow > max_flow) max_flow = flow;
 		}
@@ -773,7 +773,7 @@ std::vector<uint8_t> FlowFeedback::toBinary() const
 	for(auto sample : this->samples){
 		float flow = std::get<1>(sample);
 		int32_t t = std::get<0>(sample) - this->header.timestamp;
-		if(t >= 0 and t < 86400){
+		if(t >= 0 and t < (1<<17)){
 			uint32_t val = t & 0x1FFFF;
 			if(max_flow > 0.0f){
 				uint32_t normalized_flow = (uint32_t)((flow / max_flow) * 0x7FFF + 0.5f);

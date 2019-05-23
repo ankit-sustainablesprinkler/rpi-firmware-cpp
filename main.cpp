@@ -802,39 +802,40 @@ void modemThread(bool RTC_fitted)
 					post_run_flow_feedback_ready = false;
 				}
 				modem_fail_count = 0;
-				int type;
+				vector<int> handled_types, unhandled_types;
 				modem_IO_mutex.lock();
 				try{
 					setHeartbeatFailCount(0);
 #if defined DEBUG_MODEM
 					cout << "Tying to handle response" << endl;
 #endif
-					handleHBResponse(message.response_messageBody, type);
+					handleHBResponse(message.response_messageBody, handled_types, unhandled_types);
 					s3state.var.last_heartbeat_time = time(nullptr);
 				} catch(...){}
 				modem_IO_mutex.unlock();
-				
-				if(type == Type::CONFIG || type == Type::SCHEDULE || type == Type::FLOW_CONFIG || type == Type::FLOW_CAL){
-					modem_update_mutex.lock();
-					switch(type){
-						case Type::CONFIG:
-							cout << "READY for CONFIG" << endl;
-							config_ready = true;
-							break;
-						case Type::SCHEDULE:
-							cout << "READY for SCHEDULE" << endl;
-							schedule_ready = true;
-							break;
-						case Type::FLOW_CONFIG:
-							cout << "READY for FLOW CONFIG" << endl;
-							flow_config_ready = true;
-							break;
-						case Type::FLOW_CAL:
-							cout << "READY for FLOW CALIBRATTION" << endl;
-							perform_calibration = true;
-							break;
+				for(int type : handled_types){
+					if(type == Type::CONFIG || type == Type::SCHEDULE || type == Type::FLOW_CONFIG || type == Type::FLOW_CAL){
+						modem_update_mutex.lock();
+						switch(type){
+							case Type::CONFIG:
+								cout << "READY for CONFIG" << endl;
+								config_ready = true;
+								break;
+							case Type::SCHEDULE:
+								cout << "READY for SCHEDULE" << endl;
+								schedule_ready = true;
+								break;
+							case Type::FLOW_CONFIG:
+								cout << "READY for FLOW CONFIG" << endl;
+								flow_config_ready = true;
+								break;
+							case Type::FLOW_CAL:
+								cout << "READY for FLOW CALIBRATTION" << endl;
+								perform_calibration = true;
+								break;
+						}
+						modem_update_mutex.unlock();
 					}
-					modem_update_mutex.unlock();
 				}
 				logModem(to_string(time(nullptr)) + " INFO Modem sent heartbeat");
 				break;

@@ -237,7 +237,7 @@ bin_protocol::Header getHeader(bin_protocol::Type type)
 bin_protocol::Heartbeat getHeartbeat(std::string extra_content)
 {
 	//std::cout << "Stuff: " << extra_content << std::endl;
-	auto header = getHeader(bin_protocol::HEARTBEAT);
+	auto header = getHeader(bin_protocol::HEARTBEAT_MUTLI);
 	int up_time = getUpTime();
 	bin_protocol::Schedule schedule;
 	getSchedule(schedule);
@@ -308,16 +308,19 @@ std::string runCommand(std::string cmd)
 }
 
 
-bool handleHBResponse(const std::string &response, int &type)
+bool handleHBResponse(const std::string &response, std::vector<int> &handled_types, std::vector<int> &unhandled_types)
 {
 	bool result = false;
 	std::vector<uint8_t> data;
 	std::stringstream ss(response);
 	std::string packet;
 	while(ss >> packet){
+		std::cout << "SYS_INFO: DECODING \"" << packet << "\""<< std::endl;
+		data.clear();
 		if(base64_decode(data, packet) == BASE64_NO_ERR){
 			if(bin_protocol::isValidData(data)){
-				type = bin_protocol::getTypefromBinary(data);
+				int type = bin_protocol::getTypefromBinary(data);
+				bool unhandled_type = false;
 				switch(type){
 					case bin_protocol::HEADER:{
 						//update time
@@ -389,14 +392,22 @@ bool handleHBResponse(const std::string &response, int &type)
 						if(calibration.fromBinary(data)){
 							result = true;
 							setSystemTime(calibration.header.timestamp);
-							std::cout << "SAVING CALIBRATION" << std::endl;
+							std::cout << "SYS_INFO: SAVING CALIBRATION" << std::endl;
 							saveCalibration(calibration);
 						}
+						break;
 					}
+					default:
+						unhandled_type = true;
+				}
+				if(unhandled_type){
+					unhandled_types.push_back(type);
+				} else {
+					handled_types.push_back(type);
 				}
 			}
 		} else {
-			std::cout << "Invalid base 64 string: \"" << response << "\"" << std::endl;
+			std::cout << "SYS_WARN: Invalid base 64 string: \"" << response << "\"" << std::endl;
 		}
 	}
 	return result;

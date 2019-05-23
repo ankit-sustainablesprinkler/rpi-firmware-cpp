@@ -47,6 +47,6 @@ void rebootSystem();
 
 std::string runCommand(std::string cmd);
 
-bool handleHBResponse(const std::string &response, int &type);
+bool handleHBResponse(const std::string &response, std::vector<int> &handled_types, std::vector<int> &unhandled_types);
 
 #endif

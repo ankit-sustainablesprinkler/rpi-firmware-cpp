@@ -50,7 +50,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 	voltage_average.addValue(solenoid_voltage);
 	transformer_voltage_average.addValue(voltage);
 	
-	float current_threshold = config.current_on_thr / 1000.0;
+	float current_threshold = config.current_on_thr_mA / 1000.0;
 	if(current_threshold <= 0.0) current_threshold = CURRENT_THRESHOLD;
 
 	static int last_ovc_trigger = 0;

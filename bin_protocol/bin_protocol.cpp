@@ -489,11 +489,11 @@ Config::Config()
 	this->pump_fitted = false;
 	this->time_drift_thr = 0;
 	this->use_dst = false;
-	this->current_on_thr = 0;
+	this->current_on_thr_mA = 0;
 }
 
 Config::Config(Header header, int ID, int manual_start_time, int manual_end_time, int heartbeat_period, int16_t system_time_offset,\
-               int station_delay, bool remain_closed, bool flow_fitted, bool pump_fitted, uint8_t time_drift_thr, bool use_dst, uint8_t current_on_thr)
+               int station_delay, bool remain_closed, bool flow_fitted, bool pump_fitted, uint8_t time_drift_thr, bool use_dst, uint8_t current_on_thr_mA)
 {
 	this->header = header;
 	this->ID = ID;
@@ -507,7 +507,7 @@ Config::Config(Header header, int ID, int manual_start_time, int manual_end_time
 	this->pump_fitted = pump_fitted;
 	this->time_drift_thr = time_drift_thr;
 	this->use_dst = use_dst;
-	this->current_on_thr = current_on_thr;
+	this->current_on_thr_mA = current_on_thr_mA;
 
 
 }
@@ -529,8 +529,8 @@ std::vector<uint8_t> Config::toBinary() const
 	data.push_back((this->station_delay >> 8) & 0xFF);
 	data.push_back(this->time_drift_thr);
 	data.push_back((this->remain_closed ? 0x01 : 0x00) | (this->flow_fitted ? 0x02 : 0x00) | (this->pump_fitted ? 0x04 : 0x00) | (this->use_dst ? 0x08 : 0x00));
-	data.push_back((this->current_on_thr) & 0xFF);
-	//TODO data.push_back((this->current_on_thr / 10) & 0xFF);
+	data.push_back((this->current_on_thr_mA / 10) & 0xFF);
+	//TODO data.push_back((this->current_on_thr_mA / 10) & 0xFF);
 	//data.push_back(this->timezone);
 
 	//this->header.content_length = data.size();
@@ -558,8 +558,8 @@ bool Config::fromBinary(const std::vector<uint8_t> &data)
 				this->flow_fitted = (data[HEADER_SIZE + 12] & 0x02) != 0x00;
 				this->pump_fitted = (data[HEADER_SIZE + 12] & 0x04) != 0x00;
 				this->use_dst = (data[HEADER_SIZE + 12] & 0x08) != 0x00;
-				this->current_on_thr = data[HEADER_SIZE+13];
-				//TODO this->current_on_thr = data[HEADER_SIZE+13] * 10;
+				this->current_on_thr_mA = data[HEADER_SIZE+13] * 10;
+				//TODO this->current_on_thr_mA = data[HEADER_SIZE+13] * 10;
 				return true;
 			} else return false;
 		} else return false;

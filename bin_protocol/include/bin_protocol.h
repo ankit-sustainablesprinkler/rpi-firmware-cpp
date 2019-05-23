@@ -146,7 +146,7 @@ class Config
 public:
 	Config();
 	Config(Header header, int ID = 0, int manual_start_time = 0, int manual_end_time = 0, int heartbeat_period = 120, int16_t system_time_offset = 0,\
-		int station_delay = 0, bool remain_closed = true, bool flow_fitted=false, bool pump_fitted=false, uint8_t time_drift_thr=0, bool use_dst=false, uint8_t current_on_thr=0);
+		int station_delay = 0, bool remain_closed = true, bool flow_fitted=false, bool pump_fitted=false, uint8_t time_drift_thr=0, bool use_dst=false, uint8_t current_on_thr_mA=0);
 	std::vector<uint8_t> toBinary() const;
 	bool fromBinary(const std::vector<uint8_t> &data);
 	Header header;
@@ -161,7 +161,7 @@ public:
 	bool pump_fitted;
 	uint8_t time_drift_thr;
 	bool use_dst;
-	uint16_t current_on_thr;
+	uint16_t current_on_thr_mA;
 };
 /*
 class Config

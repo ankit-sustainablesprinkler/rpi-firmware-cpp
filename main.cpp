@@ -594,12 +594,18 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 			case AFTER:
 			{
 				cout << "Allowing OTA" << endl;
-				ofstream ota_file(OTA_SYNC_FILE);
-				if(ota_file.is_open()){
-					ota_file.close();
+				if(getUpTime() > 600000)
+				{
+					rebootSystem();
+					exit(2);
+				} else {
+					ofstream ota_file(OTA_SYNC_FILE);
+					if(ota_file.is_open()){
+						ota_file.close();
+					}
 				}
-				post_run_flow_feedback_ready = true;
-				post_run_feedback_ready = true;
+			//	post_run_flow_feedback_ready = true;
+			//	post_run_feedback_ready = true;
 				break;
 			}
 			case MANUAL:

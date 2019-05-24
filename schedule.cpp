@@ -195,22 +195,35 @@ bool isTimeToWater(const run_state_t &state, const bin_protocol::Schedule &sched
 			if(time_diff_mod == 0){
 				int time_diff_days = (midnight - custom.start_date)/86400; // programs which are not integer multiples of 24 hours are water now and are ignored here
 				if(custom.period < 1) custom.period = 1;
+
+				bool program_active = 
+						(time_diff_days >= 0 && midnight < (custom.start_date + custom.days)) || //program is active
+
+						(!custom.uses_schedule && custom.should_override && !(time_diff_days%custom.period)) ||//the custom program overrides the regular schedule in all cases.
+
+						(!custom.uses_schedule && !custom.should_override && !is_scheduled_day && !((difference % n)%custom.period)) ||//custom program is syncronized to regular program but regular takes priority
+						
+						(custom.uses_schedule && is_scheduled_day); //custom program runs only on schedule days so skip all others
+
+				/*
 				if(time_diff_days < 0) continue;//custom program is in the future or not schedule
 				
-				if(!custom.uses_schedule && !custom.should_override && time_diff_days%custom.period) continue; //custom program runs according to custom period regardless of schedule
+				if(!custom.uses_schedule && custom.should_override && time_diff_days%custom.period) continue; //custom program runs according to custom period regardless of schedule
 
-				bool no_run_days = is_scheduled_day || (difference - custom.period)%n;
-				if(custom.should_override && (custom.uses_schedule || no_run_days)) continue; //schedule overrides custom program on these days, so skip
+				bool no_run_days = is_scheduled_day || (difference - custom.period + 1)%n;
+				if(!custom.should_override && (custom.uses_schedule || no_run_days)) continue; //schedule overrides custom program on these days, so skip
 
 				if(custom.uses_schedule && !is_scheduled_day) continue; //custom program runs only on schedule days so skip all others
 				
 				if(time_diff_days < custom.days) { //program is active
+				*/
+				if(program_active){
 					int index = 0;
 					for(auto program : custom.zones){
 						for(auto zone : program){
 							if(zone == state.zone){
 								custom_run = true;
-								if(custom_should_spinkle && index == state.program){ //only overrite if type is should sprinkle, Do not water takes priority
+								if(custom_should_spinkle && index == state.program){ //only override if type is should sprinkle, Do not water takes priority
 									custom_run_active = true;
 									custom_should_spinkle = custom.should_sprinkle;
 								}

@@ -62,7 +62,7 @@ uint32_t getUpTime()
 }
 void setSystemTime(time_t time)
 {
-	std::cout << "Setting date" << std::endl;
+	std::cout << "SYS_INFO: Setting date" << std::endl;
 	runCommand("date +%s -s @" + std::to_string(time));
 	runCommand("hwclock -w");
 }
@@ -336,7 +336,7 @@ bool handleHBResponse(const std::string &response, std::vector<int> &handled_typ
 						if(schedule.fromBinary(data)){
 							result = true;
 							setSystemTime(schedule.header.timestamp);
-							std::cout << "SAVING SCHEDULE" << std::endl;
+							std::cout << "SYS_INFO: SAVING SCHEDULE" << std::endl;
 							saveSchedule(schedule);
 						}
 						break;
@@ -346,7 +346,7 @@ bool handleHBResponse(const std::string &response, std::vector<int> &handled_typ
 						if(config.fromBinary(data)){
 							result = true;
 							setSystemTime(config.header.timestamp);
-							std::cout << "SAVING CONFIG" << std::endl;
+							std::cout << "SYS_INFO: SAVING CONFIG" << std::endl;
 							saveConfig(config);
 						}
 						break;
@@ -356,7 +356,7 @@ bool handleHBResponse(const std::string &response, std::vector<int> &handled_typ
 						if(flow_config.fromBinary(data)){
 							result = true;
 							setSystemTime(flow_config.header.timestamp);
-							std::cout << "SAVING FLOW CONFIG" << std::endl;
+							std::cout << "SYS_INFO: SAVING FLOW CONFIG" << std::endl;
 							saveFlowConfig(flow_config);
 						}
 						break;
@@ -376,11 +376,11 @@ bool handleHBResponse(const std::string &response, std::vector<int> &handled_typ
 							uint64_t md5_64;
 							converter >> std::hex >> md5_64;
 							if(firmware.md5_64 == md5_64){
-								std::cout << "Valid firmware" << std::endl;
+								std::cout << "SYS_INFO: Valid firmware" << std::endl;
 								std::string result = runCommand("gunzip -f " FIRMWARE_FILE ".gz");
-								std::cout << result << std::endl;
+								std::cout << "SYS_EXEC: " << result << std::endl;
 								result = runCommand("chmod 755 " FIRMWARE_FILE);
-								std::cout << result << std::endl;
+								std::cout << "SYS_EXEC: " << result << std::endl;
 							}
 						}
 						delete[] firmware_data;

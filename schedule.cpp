@@ -37,7 +37,6 @@ time_t schedule_getMidnight(const bin_protocol::Schedule &schedule, const bin_pr
 bool isWateringNeeded(const run_state_t &state, const bin_protocol::Schedule &schedule, const bin_protocol::Config &config, time_t &now, time_t midnight)
 {
 	bool result = false;
-	
 
 
 	time_t manual_start_time = midnight + config.manual_start_time * 60;		// manual start time is stored as offset from midnight in minutes
@@ -46,17 +45,24 @@ bool isWateringNeeded(const run_state_t &state, const bin_protocol::Schedule &sc
 	time_t effective_date = schedule.effective_date;
 	//std::cout << "POOP A" << std::endl;
 	if(manual_start_time <= now && now < manual_end_time){ //Manual run period so swtich relay on
-		//std::cout << "Manual2" << std::endl;
-		//std::cout << "POOP B" << std::endl;
+		std::cout << "Manual2" << std::endl;
 		result = config.remain_closed;// mechanical systems need to open during manual water.
 
 		//Water Now Feature
 		if(!config.remain_closed){
+
+			std::cout << "POOP A" << std::endl;
 			for(auto custom : schedule.custom_programs)
 			{
 				int time_diff_mod = (midnight - custom.start_date) % 86400; //programs which are not integer multiples of 24 hours are water now
+				
+				std::cout << "POOP B " << time_diff_mod << std::endl;
 				if(time_diff_mod && schedule.prgm_start_times.size() > 0){
+					
+					std::cout << "POOP C " << custom.start_date << " " << midnight << std::endl;
 					if(custom.start_date > midnight){
+						
+						std::cout << "POOP D" << std::endl;
 						run_state_t new_state;
 						int modified_time = now + schedule.prgm_start_times[0] *60 - custom.start_date + midnight;
 						getRunState(new_state, schedule, config, modified_time, midnight);
@@ -177,6 +183,7 @@ bool isTimeToWater(const run_state_t &state, const bin_protocol::Schedule &sched
 
 	if(state.type == ZONE || state.type == DELAY) //Normal run
 	{
+	//	std::cout << "HERE" << std::endl;
 		bool custom_run = false;
 		bool custom_run_active = false;
 		bool custom_should_spinkle = true;
@@ -196,14 +203,22 @@ bool isTimeToWater(const run_state_t &state, const bin_protocol::Schedule &sched
 				int time_diff_days = (midnight - custom.start_date)/86400; // programs which are not integer multiples of 24 hours are water now and are ignored here
 				if(custom.period < 1) custom.period = 1;
 
+				//std::cout << time_diff_days << " " << midnight << "  "<< custom.start_date << "  " << (int)custom.days << std::endl;
+				bool a,b,c,d;
+				a = time_diff_days >= 0 && midnight < (custom.start_date + custom.days*86400);
+				b = !custom.uses_schedule && custom.should_override && !(time_diff_days%custom.period);
+				c = !custom.uses_schedule && !custom.should_override && !is_scheduled_day && !((difference % n)%custom.period);
+				d = custom.uses_schedule && is_scheduled_day;
+				//std::cout << custom.start_date << " " << custom.uses_schedule << " " << custom.should_override << a << ", " << b << ", " << c << ", " << d << std::endl;
 				bool program_active = 
-						(time_diff_days >= 0 && midnight < (custom.start_date + custom.days)) || //program is active
+						(time_diff_days >= 0 && midnight < (custom.start_date + custom.days*86400)) && ( //program is active
 
 						(!custom.uses_schedule && custom.should_override && !(time_diff_days%custom.period)) ||//the custom program overrides the regular schedule in all cases.
 
 						(!custom.uses_schedule && !custom.should_override && !is_scheduled_day && !((difference % n)%custom.period)) ||//custom program is syncronized to regular program but regular takes priority
 						
-						(custom.uses_schedule && is_scheduled_day); //custom program runs only on schedule days so skip all others
+						(custom.uses_schedule && is_scheduled_day) //custom program runs only on schedule days so skip all others
+						);
 
 				/*
 				if(time_diff_days < 0) continue;//custom program is in the future or not schedule

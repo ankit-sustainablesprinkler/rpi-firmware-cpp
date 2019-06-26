@@ -193,6 +193,7 @@ int main(int argc, char **argv)
 		CalibrationResult cal_result;
 		bool has_schedule = getSchedule(schedule);
 		cout<< "programs: " << schedule.zone_duration.size() << endl;
+		cout << schedule.custom_programs.size() << std::endl;
 		bool has_config = getConfig(config);
 		bool has_flow_config = getFlowConfig(flow_config);
 		time_t heartbeat_period = HEARTBEAT_MIN_PERIOD;//config.heartbeat_period;
@@ -566,7 +567,7 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 		if(state.type == MANUAL){
 			//insert manual run in feedback
 			cout << "Manual run detected" << endl;
-			//s3state.feedback[s3state.var.current_feedback].manual_runs.push_back(make_tuple<int, uint16_t>(now, 0));
+			s3state.feedback[s3state.var.current_feedback].manual_runs.push_back(make_tuple<int, uint16_t>(now, 0));
 			s3state.alert_feedback.alerts.push_back(make_tuple<int, char, string>(now, 'M', ""));
 			cout << s3state.feedback[s3state.var.current_feedback].manual_runs.size();
 		}
@@ -576,9 +577,12 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 	if(!s3state.var.current_state && s3state.var.current_state_prev){
 		if(state.type == MANUAL){
 			//insert curr_on_time into last event
+			/*for( auto &event : s3state.alert_feedback.alerts){
+				char type = std::get<1>(event);
+			}*/
 			if(s3state.feedback[s3state.var.current_feedback].manual_runs.size() > 0){
 				cout << "Manual run Ended" << endl;
-				//get<1>(s3state.feedback[s3state.var.current_feedback].manual_runs.back()) = (sensor::curr_on_time + 30) / 60;
+				get<1>(s3state.feedback[s3state.var.current_feedback].manual_runs.back()) = (sensor::curr_on_time + 30) / 60;
 				s3state.alert_feedback.alerts.push_back(make_tuple<int, char, string>(now, 'E', "Duration: " + to_string((sensor::curr_on_time + 30) / 60)));
 				sensor::curr_on_time = 0;
 			}

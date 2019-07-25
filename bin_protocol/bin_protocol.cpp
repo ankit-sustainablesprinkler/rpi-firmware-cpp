@@ -359,7 +359,7 @@ std::vector<uint8_t> Schedule::toBinary() const
 			uint16_t days = custom.days;
 			uint8_t period = custom.period;
 			uint8_t should_spinkle = custom.should_sprinkle ? 1 : 0;
-			int size = (prog_count*zone_count)/8 + !!(prog_count*zone_count); //round up
+			int size = (prog_count*zone_count + 7)/8;// + !!(prog_count*zone_count); //round up
 			std::vector<uint8_t> zone_data(size);
 			int prog_num = 0;
 			//Some more bit shifting magic
@@ -402,7 +402,7 @@ bool Schedule::fromBinary(const std::vector<uint8_t> &data)
 				this->ID = data[HEADER_SIZE];
 				int program_count = data[HEADER_SIZE + 1];
 				int zone_count = data[HEADER_SIZE + 2];
-				int zone_data_length = (program_count*zone_count)/8 + !!(program_count*zone_count);
+				int zone_data_length = (program_count*zone_count+7)/8;// + !!(program_count*zone_count);
 				this->effective_date = data[HEADER_SIZE + 3] | (data[HEADER_SIZE+4] << 8) | (data[HEADER_SIZE+5] << 16) | (data[HEADER_SIZE+6] << 24);
 				this->days = data[HEADER_SIZE + 7] & 0x7F;
 				this->is_shift = (data[HEADER_SIZE+7]&0x80) == 0 ? false : true;

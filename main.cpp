@@ -499,7 +499,7 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 	bool watering_needed = isWateringNeeded(state, schedule, config, now, midnight);
 
 	//dissable irrigation if any fault flags are set
-	if(s3state.var.blocked_pump_detected){
+	if(s3state.var.blocked_pump_detected || s3state.var.very_high_flow){
 		watering_needed = false;
 	}
 
@@ -617,6 +617,10 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 				//Clear flags that need to be reset will manual run starts
 				s3state.var.blocked_pump_detected = false;
 				s3state.var.unscheduled_flow = false;
+				
+				s3state.var.low_flow = false;
+				s3state.var.high_flow = false;
+				s3state.var.very_high_flow = false;
 
 				break;
 			case ZONE:

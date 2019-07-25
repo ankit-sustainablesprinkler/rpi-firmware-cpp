@@ -60,7 +60,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 
 	if(ovc_state){
 		if(!ovc_prev_state){
-			//ovc_prev_state = true;
 			last_ovc_trigger = time(nullptr);
 			if(state.var.ovc_trigger_count < 3){
 				state.var.ovc_trigger_count++;
@@ -71,7 +70,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 			std::cout << "OVC Fault triggered " << state.var.ovc_trigger_count << std::endl;
 		} else if(time(nullptr) - last_ovc_trigger > 10 && state.var.ovc_trigger_count < 3){
 			ovc_state = false;
-			//ovc_prev_state = false;
 			digitalWrite(PIN_FAULT_CLEAR, HIGH);
 			digitalWrite(PIN_FAULT_CLEAR, LOW);
 		}
@@ -82,10 +80,8 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 
 	if(config.flow_fitted){
 		if(flowGet(flow_raw)){
-			//std::cout <<  " Flow before: " << flow << std::endl;
 			if(flow_raw != 0){
 				flow = flow_configuration.K*(flow_raw + flow_configuration.offset);
-				//std::cout << flow << std::endl;
 			}
 			
 			static int blocked_pump_detected_count = 0;
@@ -97,7 +93,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 
 			per_minute_flow.addValue(flow);
 			
-			//std::cout <<  " Flow: " << per_minute_flow.getAverage() << " Size: " << per_minute_flow.getSize() <<  std::endl;
 			if(config.pump_fitted){
 				if(flow < flow_configuration.flow_thr_min && solenoid_current > current_threshold){
 					if(!state.var.blocked_pump_detected){
@@ -114,9 +109,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 				}
 			}
 			if(flow_raw > 0 && solenoid_current < current_threshold){
-				//std::cout << "Here" << std::endl;
 				if(!state.var.unscheduled_flow){
-				//	std::cout << "still here" << std::endl;
 					unscheduled_flow_count ++;
 					if(unscheduled_flow_count > 60){
 						std::cout << "Leak detected" << std::endl;
@@ -139,7 +132,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 						break;
 					}
 				}
-				//std::cout << calibrated << "  " << (1+flow_configuration.flow_thr_low/100.0) << std::endl;
 				if(calibrated && flow < (1-flow_configuration.flow_thr_low/100.0)*threshold && solenoid_current > current_threshold){
 					if(!state.var.low_flow){
 						low_flow_count ++;
@@ -183,14 +175,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 			}
 		}
 	}
-	//std::cout << "Voltage: " << solenoid_voltage << ", Current: " << solenoid_current << ", Flow: " << flow << std::endl;
-	//std::cout << "Voltage avg: " << voltage_average.getAverage() << ", Current avg: " << current_average.getAverage()
-	//<< ", Flow avg: " << flow_average.getAverage() << std::endl;
-	
-	
-	//std::cout << solenoid_voltage << " V, " << solenoid_current << " A" << std::endl;
-	
-	//voltage = voltage * voltage_count++ + new
 	
 	time_t now = time(nullptr);
 	
@@ -210,7 +194,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 			voltage_state = false;
 			if(now > voltage_start){
 				std::cout << "Voltage off" << std::endl;
-				//volt_on_time += now - voltage_start;
 				std::cout << "Voltage dur: " << volt_on_time << ", Avg: " << voltage_average.getAverage() << std::endl;
 			}
 		}
@@ -218,7 +201,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 		if(solenoid_voltage > VOLTAGE_THRESHOLD*(1+HYSTERESIS)){
 			voltage_state = true;
 			std::cout << "Voltage on" << std::endl;
-			//if(!voltage_state_prev) voltage_start = now;
 			voltage_start = now;
 			volt_on_time_prev = volt_on_time;
 		}
@@ -233,7 +215,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 			current_state = false;
 			if(now > current_start){
 				std::cout << "Current off" << std::endl;
-				//curr_on_time += now - current_start;
 				std::cout << "Current dur: " << curr_on_time << ", Avg: " << current_average.getAverage() << std::endl;
 			}
 		}
@@ -250,9 +231,6 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 		curr_on_time = curr_on_time_prev + now - current_start;
 	}
 
-
-	
-	//std::cout << "voltage time: " << volt_on_time << " current time" << curr_on_time << std::endl;
 }
 
 void resetCurrent()
@@ -273,10 +251,5 @@ void resetFlow()
 {
 	flow_average.reset();
 }
-	
-	
-	
-	
-	
 	
 }

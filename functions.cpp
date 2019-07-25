@@ -14,7 +14,6 @@
 
 uint32_t getSerialNumber()
 {
-	//cpu_serial = "0000000000000000"
 	std::ifstream file("/proc/cpuinfo");
 	if(file.is_open())
 	{
@@ -95,7 +94,7 @@ int incrementHeartbeatFail()
 bool getConfig(bin_protocol::Config &config)
 {
 	
-	std::ifstream file(CONFIG_FILE);//, std::ios::binary|std::ios::ate);
+	std::ifstream file(CONFIG_FILE);
 	if(file.is_open()){
 		
 		std::string str;
@@ -110,15 +109,13 @@ bool getConfig(bin_protocol::Config &config)
 
 bool saveConfig(const bin_protocol::Config &config)
 {
-	std::ofstream file(CONFIG_FILE, std::ios::out);// | std::ofstream::binary);
+	std::ofstream file(CONFIG_FILE, std::ios::out);
 	if(file.is_open()){
 		auto bin_data = config.toBinary();
 		std::string str;
 		base64_encode(bin_data, str);
 		file << str;
 		file.flush();
-		//std::ostream_iterator<char> osi{file};
-		//std::copy(bin_data.begin(),bin_data.end(),osi);
 		file.close();
 		return true;
 	}
@@ -128,7 +125,7 @@ bool saveConfig(const bin_protocol::Config &config)
 bool getFlowConfig(bin_protocol::FlowConfiguration &flow_config)
 {
 	
-	std::ifstream file(FLOW_CONFIG_FILE);//, std::ios::binary|std::ios::ate);
+	std::ifstream file(FLOW_CONFIG_FILE);
 	if(file.is_open()){
 		
 		std::string str;
@@ -143,15 +140,13 @@ bool getFlowConfig(bin_protocol::FlowConfiguration &flow_config)
 
 bool saveFlowConfig(const bin_protocol::FlowConfiguration &flow_config)
 {
-	std::ofstream file(FLOW_CONFIG_FILE, std::ios::out);// | std::ofstream::binary);
+	std::ofstream file(FLOW_CONFIG_FILE, std::ios::out);
 	if(file.is_open()){
 		auto bin_data = flow_config.toBinary();
 		std::string str;
 		base64_encode(bin_data, str);
 		file << str;
 		file.flush();
-		//std::ostream_iterator<char> osi{file};
-		//std::copy(bin_data.begin(),bin_data.end(),osi);
 		file.close();
 		return true;
 	}
@@ -160,40 +155,26 @@ bool saveFlowConfig(const bin_protocol::FlowConfiguration &flow_config)
 
 bool getSchedule(bin_protocol::Schedule &schedule)
 {
-	std::ifstream file(SCHEDULE_FILE);//, std::ios::binary|std::ios::ate);
+	std::ifstream file(SCHEDULE_FILE);
 	if(file.is_open()){
-		/*int beg = file.tellg();
-		file.seekg(0, std::ios::end);
-		int size = file.tellg() - beg;*/
-
 		std::string str;
 		if(std::getline(file, str)){
 			std::vector<uint8_t> data;
 			base64_decode(data, str);
 			if(schedule.fromBinary(data))return true;
 		}
-		/*
-		std::vector<uint8_t>  data(pos);
-		file.seekg(0, std::ios::beg);
-		file.read(reinterpret_cast<char*>(&data.front()), pos);
-		file.close();
-		if(schedule.fromBinary(data))return true;*/
 	}
 	return false;;
 }
 bool saveSchedule(const bin_protocol::Schedule &schedule)
 {
-	std::ofstream file(SCHEDULE_FILE, std::ios::out);// | std::ofstream::binary);
+	std::ofstream file(SCHEDULE_FILE, std::ios::out);
 	if(file.is_open()){
 		auto bin_data = schedule.toBinary();
 		std::string str;
 		base64_encode(bin_data, str);
-		//std::cout << "Before\n";
 		file << str;
-		//std::cout << "After\n";
 		file.flush();
-		//std::ostream_iterator<char> osi{file};
-		//std::copy(bin_data.begin(),bin_data.end(),osi);
 		file.close();
 		return true;
 	}
@@ -202,7 +183,7 @@ bool saveSchedule(const bin_protocol::Schedule &schedule)
 
 bool getCalibration(bin_protocol::CalibrationSetup &calibration)
 {
-	std::ifstream file(CALIBRATION_FILE);//, std::ios::binary|std::ios::ate);
+	std::ifstream file(CALIBRATION_FILE);
 	if(file.is_open()){
 
 		std::string str;
@@ -216,7 +197,7 @@ bool getCalibration(bin_protocol::CalibrationSetup &calibration)
 }
 bool saveCalibration(const bin_protocol::CalibrationSetup &calibration)
 {
-	std::ofstream file(CALIBRATION_FILE, std::ios::out);// | std::ofstream::binary);
+	std::ofstream file(CALIBRATION_FILE, std::ios::out);
 	if(file.is_open()){
 		auto bin_data = calibration.toBinary();
 		std::string str;
@@ -236,7 +217,6 @@ bin_protocol::Header getHeader(bin_protocol::Type type)
 
 bin_protocol::Heartbeat getHeartbeat(std::string extra_content)
 {
-	//std::cout << "Stuff: " << extra_content << std::endl;
 	auto header = getHeader(bin_protocol::HEARTBEAT_MUTLI);
 	int up_time = getUpTime();
 	bin_protocol::Schedule schedule;
@@ -246,7 +226,6 @@ bin_protocol::Heartbeat getHeartbeat(std::string extra_content)
 	bin_protocol::FlowConfiguration flow_config;
 	getFlowConfig(flow_config);
 	int temp = (int) getTemperature();
-	//TODO modem stuff.
 	std::string state = getRelayState() ? "close" : "open";
 	return bin_protocol::Heartbeat(header, up_time, schedule.ID, config.ID, temp, 0, state, extra_content, flow_config.ID);
 }

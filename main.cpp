@@ -258,6 +258,8 @@ int main(int argc, char **argv)
 		run_state_t state;
 		state.type = NONE;
 
+		time_t last_state_save = 0;
+
 		//main loop
 		cout << "============ Entering main loop ================" << endl;
 		while(true)
@@ -473,8 +475,10 @@ int main(int argc, char **argv)
 				}
 				modem_cond.notify_all();
 			}
-
-			state_saveState(s3state);
+			if(last_state_save + 600 < time(nullptr)){
+				last_state_save = time(nullptr);
+				state_saveState(s3state);
+			}
 
 			//cout << flow_feedback_ready << "  " << feedback_ready << endl;
 

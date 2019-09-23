@@ -152,6 +152,31 @@ int main(int argc, char **argv)
 		
 		cout << "Starting" << endl;
 		//Initial power on routine
+
+		std::ifstream boot_config( "/boot/config.txt" );
+		bool found_rtc_enable = false;
+		for( std::string line; getline( boot_config, line ); )
+		{
+			if(line == "dtoverlay=i2c-rtc,mcp7940x"){
+				found_rtc_enable = true;
+			}
+		}
+		boot_config.close();
+
+		if(found_rtc_enable){
+			cout << "found rtc enable" << endl;
+		} else {
+			cout << "RTC not enabled. modifying /boot/config.txt" << endl;
+			ofstream boot_config_write;
+			boot_config_write.open ("/boot/config.txt", ios::out | ios::app);
+			boot_config_write << "\ndtoverlay=i2c-rtc,mcp7940x\n";
+			boot_config_write.close();
+
+			rebootSystem();
+			exit(2);
+		}
+
+
 		lcm::LCM lcm;
 
 		if(!lcm.good())

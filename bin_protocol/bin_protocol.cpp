@@ -127,7 +127,7 @@ Heartbeat::Heartbeat()
 Heartbeat::Heartbeat(Header header, int up_time, int schedule_id, int config_id, int temperature, int signal, std::string state, std::string extra_content, int flow_id)
 {
 	this->header = header;
-	this->header.type = HEARTBEAT_MUTLI;
+	this->header.type = HEARTBEAT_MULTI;
 	this->up_time = up_time;
 	this->schedule_id = schedule_id;
 	this->config_id = config_id;

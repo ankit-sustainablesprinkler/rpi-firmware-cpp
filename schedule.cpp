@@ -6,11 +6,17 @@
 
 time_t schedule_getMidnight(const bin_protocol::Schedule &schedule, const bin_protocol::Config &config, time_t &now)
 {
+	/*
 	int timezone = -5; // this needs to be in config
 
 	if(config.use_dst) timezone += 1;
 	time_t now_tz = now + timezone*3600;
+	*/
 
+	time_t tz = 86400 - schedule.effective_date % 86400;
+	time_t midnight = ((now + tz)/86400) * 86400 - tz;
+
+	/*
 	struct tm * now_date = localtime(&now_tz);
 	struct tm midnight_date;
 	memset(&midnight_date, 0, sizeof(midnight_date));
@@ -18,7 +24,7 @@ time_t schedule_getMidnight(const bin_protocol::Schedule &schedule, const bin_pr
 	midnight_date.tm_mon = now_date->tm_mon;
 	midnight_date.tm_mday = now_date->tm_mday;
 	midnight_date.tm_hour = -timezone;
-	time_t midnight = mktime(&midnight_date);
+	time_t midnight = mktime(&midnight_date);*/
 
 	now += config.system_time_offset; //adjust current time to compensate for clock drift
 

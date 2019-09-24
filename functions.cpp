@@ -217,7 +217,7 @@ bin_protocol::Header getHeader(bin_protocol::Type type)
 
 bin_protocol::Heartbeat getHeartbeat(std::string extra_content)
 {
-	auto header = getHeader(bin_protocol::HEARTBEAT_MUTLI);
+	auto header = getHeader(bin_protocol::HEARTBEAT_MULTI);
 	int up_time = getUpTime();
 	bin_protocol::Schedule schedule;
 	getSchedule(schedule);

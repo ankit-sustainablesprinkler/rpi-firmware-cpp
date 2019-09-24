@@ -151,6 +151,7 @@ int main(int argc, char **argv)
 		sensor::sensorInit();
 		
 		cout << "Starting" << endl;
+		cout << "Version " << FIRMWARE_VERSION << endl;
 		//Initial power on routine
 
 		std::ifstream boot_config( "/boot/config.txt" );

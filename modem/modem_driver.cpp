@@ -101,6 +101,7 @@ int ModemDriver::read_line(int index)
 		  last = time();
 		  if(index < (BUFFER_SIZE - 1)) { // One less than the size of the array
 			reply[index] = inChar; // Store it
+			//std::cout << inChar << std::endl;
 			index++; // Increment where to write next
 
 			if(index == (BUFFER_SIZE - 1) || (inChar == '\n')) { //some data still available, keep it in serial buffer
@@ -108,7 +109,7 @@ int ModemDriver::read_line(int index)
 			}
 		  }
 	  }
-  } while((time() - last) < posix_time::milliseconds(50)); // allow some inter-character delay
+  } while((time() - last) < posix_time::milliseconds(500)); // allow some inter-character delay
 
   reply[index] = '\0'; // Null terminate the string
   return index;
@@ -594,7 +595,7 @@ bool ModemDriver::SendCmd(const std::string &cmd, std::string &data, posix_time:
 	flush();
 
 	port->write(cmd);
-	port->write("\n");
+	port->write("\r\n");
 
 	process_reply(end_on_ok, timeout);
 

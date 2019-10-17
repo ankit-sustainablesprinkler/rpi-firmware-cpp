@@ -6,9 +6,9 @@ MODEM_LIBS=-lboost_system
 LDFLAGS=-pthread
 # -L/opt/rootfs-raspbian/usr/lib/arm-linux-gnueabihf -L/opt/rootfs-raspbian/lib/arm-linux-gnueabihf  -L/opt/rootfs-raspbian/usr/local/lib -Xlinker -rpath-link=/opt/rootfs-raspbian/lib/arm-linux-gnueabihf/ -Xlinker -rpath-link=/opt/rootfs-raspbian/usr/lib/arm-linux-gnueabihf/
 BIN_DIR=bin/
-OBJ=$(addprefix $(BIN_DIR),functions.o base64.o bin_protocol.o crc16.o modem.o modem_driver.o serial_driver.o)
+OBJ=$(addprefix $(BIN_DIR),functions.o base64.o bin_protocol.o crc16.o modem.o modem_driver.o serial_driver.o ublox_modem.o nimbelink_modem.o)
 SCHEDULE_OBJ=$(addprefix $(BIN_DIR),main.o schedule.o state.o) $(OBJ)
-MODEM_OBJ=$(addprefix $(BIN_DIR),modem_test.o modem.o modem_driver.o serial_driver.o)
+MODEM_OBJ=$(addprefix $(BIN_DIR),modem_test.o modem.o modem_driver.o serial_driver.o ublox_modem.o nimbelink_modem.o)
 TEST_OBJ=$(addprefix $(BIN_DIR),test.o schedule.o) $(OBJ)
 SENSOR_OBJ=$(addprefix $(BIN_DIR), sensor_static.o sensor.o moving_average.o)
 
@@ -58,6 +58,12 @@ $(BIN_DIR)modem_test.o: modem/modem_test.cpp
 	
 $(BIN_DIR)modem.o: modem/modem.cpp
 	g++ $(CXXFLAGS) $(INC) -c modem/modem.cpp -o $(BIN_DIR)modem.o
+
+$(BIN_DIR)ublox_modem.o: modem/ublox_modem.cpp
+	g++ $(CXXFLAGS) $(INC) -c modem/ublox_modem.cpp -o $(BIN_DIR)ublox_modem.o
+	
+$(BIN_DIR)nimbelink_modem.o: modem/nimbelink_modem.cpp
+	g++ $(CXXFLAGS) $(INC) -c modem/nimbelink_modem.cpp -o $(BIN_DIR)nimbelink_modem.o
 	
 $(BIN_DIR)modem_driver.o: modem/modem_driver.cpp
 	g++ $(CXXFLAGS) $(INC) -c modem/modem_driver.cpp -o $(BIN_DIR)modem_driver.o

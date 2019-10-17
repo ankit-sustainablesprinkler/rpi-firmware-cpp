@@ -17,6 +17,8 @@
 #include "functions.h"
 #include "schedule.h"
 #include "modem.h"
+#include "ublox_modem.h"
+#include "nimbelink_modem.h"
 #include "failure_exception.h"
 #include "sensor_static.h"
 #include "state.h"
@@ -34,7 +36,7 @@
 using namespace std;
 using namespace bin_protocol;
 bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &config);
-static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message);
+static Modem::ErrType modemPut(Modem *modem, modem_reply_t &message);
 void switch_init();
 void fault_reset();
 void modemThread(bool RTC_fitted);
@@ -64,7 +66,7 @@ extern MovingAverage<float> voltage_average;
 extern MovingAverage<float> transformer_voltage_average;
 }
 
-Modem modem;
+Modem *modem;
 
 Schedule new_schedule;
 Config new_Config;
@@ -149,6 +151,8 @@ int main(int argc, char **argv)
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		digitalWrite(PIN_WDT_RESET, LOW);
 		sensor::sensorInit();
+
+		modem = new Modem;
 		
 		cout << "Starting" << endl;
 		cout << "Version " << FIRMWARE_VERSION << endl;
@@ -190,15 +194,41 @@ int main(int argc, char **argv)
 		s3state.flow_feedback[1].header.type = bin_protocol::FLOW;
 
 		int modem_fail_count = 0;
-		modem.init();
-		modem.PowerOff();
+		modem->init();
+		modem->PowerOff();
 		this_thread::sleep_for(chrono::seconds(10));
-		modem.PowerOn();
+		modem->PowerOn();
 #ifdef DEBUG_MODEM
 		cout << "Power on modem" << endl;
 		cout << "connecting to modem" << endl;
 #endif
-		modem.Open(SERIAL_PORT, 115200);
+		modem->Open(SERIAL_PORT, 115200);
+
+		if(modem->waitForReady()){
+			string response;
+			modem->SendCmd("I", response);
+
+			if(response.find("ELS31-V")!= string::npos){
+				cout<< "INFO: Nimbelink modem detected, using NL_SW_LTE_GELS3 interface" << endl;
+				delete modem;
+				modem = new NL_SW_LTE_GELS3;
+				modem->init();
+				modem->Open(SERIAL_PORT, 115200);
+			} else if(response.find("SARA-R410M")!= string::npos){
+				cout<< "INFO: uBlox modem detected, using SARA_R410M interface" << endl;
+				delete modem;
+				modem = new SARA_R410M;
+				modem->init();
+				modem->Open(SERIAL_PORT, 115200);
+			} else {
+				cout<< "ERROR: Unrecognized modem: " << response << endl;
+			}
+
+			//cout << "GFHRSTGHSRTHWSTHWSREH" << response << endl;
+
+		} else {
+			cout<< "ERROR: No Modem resonse to ATI poll." << endl;
+		}
 
 		bool RTC_fitted = true;
 		bool triedReset = false;
@@ -244,7 +274,7 @@ int main(int argc, char **argv)
 		//send first heartbeat
 		//string extra_content = "";
 		try{
-			extra_content = "{\"Phone\":\"" + modem.Phone() + "\",\"IMEI\":\"" + modem.IMEI() + "\"}";
+			extra_content = "{\"Phone\":\"" + modem->Phone() + "\",\"IMEI\":\"" + modem->IMEI() + "\"}";
 		} catch (exception e) {
 			cout << e.what() << endl;
 		} catch (...) {
@@ -436,6 +466,9 @@ int main(int argc, char **argv)
 
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
 			if(time(nullptr) - s3state.var.last_heartbeat_time > config.heartbeat_period){
+				
+				s3state.var.last_heartbeat_time = time(nullptr);
+
 				if(cal_result.flow_values.size() > 0){
 					auto header = getHeader(bin_protocol::FLOW_RESULT);
 					cal_result.header = header;
@@ -708,53 +741,53 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 	return true;
 }
 
-static Modem::ErrType modemPut(Modem &modem, modem_reply_t &message)
+static Modem::ErrType modemPut(Modem *modem, modem_reply_t &message)
 {
-	string requestLine =
-		string("PUT ") + "http://" SERVER_HOST SERVER_PATH "/ HTTP/1.1\r\n";
-
-	string headers =
-		requestLine + string("Host: ") + SERVER_HOST + "\r\n" +
-		"Content-Length: " + to_string(message.request_messageBody.length()) + "\r\n" +
-		"Connection: close\r\n" +
-		+ "\r\n";
-		
-	message.port = SERVER_PORT;
-	message.host = SERVER_HOST;
 	Modem::ErrType error = Modem::UNKNOWN;
-	//Modem::ErrType error = modem.HttpRequest(message, SERVER_HOST, SERVER_PORT, requestLine, headers, message.request_messageBody);
-	modem.PowerOn();
-	this_thread::sleep_for(chrono::seconds(1));
-	//modem.init(); // Should this be removed? - Anthony
-	modem.Open(SERIAL_PORT, 115200);
-	
-	if(firstBoot == true){
-		modem.waitForReady(); // Modem should be ready... Anthony
-		firstBoot = false;
-	}
-	message.statusCode = 0;
+	if(modem){
+		string requestLine =
+			string("PUT ") + "http://" SERVER_HOST SERVER_PATH "/ HTTP/1.1\r\n";
 
-	cout << "Headers: " << headers << endl;
-	//message.request_messageBody += "\r\n";
-	if(modem.sendRequest(headers, message)){
-		if(message.statusCode > 0) error = Modem::NONE;
-		else error = Modem::UNKNOWN;
-		/*switch(message.statusCode){
-			case 200:
-			case 302:
-				error = Modem::NONE;
-				break;
-			default:
-				error = Modem::UNKNOWN;
-		}*/
-		//error = message.statusCode == 200 ? Modem::NONE : Modem::UNKNOWN;
-	} else {
-#if defined DEBUG_MODEM
-		cout << "NEED to seppuku" << endl;
-#endif
+		string headers =
+			requestLine + string("Host: ") + SERVER_HOST + "\r\n" +
+			"Content-Length: " + to_string(message.request_messageBody.length()) + "\r\n" +
+			"Connection: close\r\n" +
+			+ "\r\n";
+			
+		message.port = SERVER_PORT;
+		message.host = SERVER_HOST;
+		//Modem::ErrType error = modem->HttpRequest(message, SERVER_HOST, SERVER_PORT, requestLine, headers, message.request_messageBody);
+		modem->PowerOn();
+		this_thread::sleep_for(chrono::seconds(1));
+		//modem->init(); // Should this be removed? - Anthony
+		modem->Open(SERIAL_PORT, 115200);
+		
+		
+		//modem->waitForReady(60);
+
+		message.statusCode = 0;
+
+		cout << "Headers: " << headers << endl;
+		//message.request_messageBody += "\r\n";
+		if(modem->sendRequest(headers, message)){
+			if(message.statusCode > 0) error = Modem::NONE;
+			else error = Modem::UNKNOWN;
+			/*switch(message.statusCode){
+				case 200:
+				case 302:
+					error = Modem::NONE;
+					break;
+				default:
+					error = Modem::UNKNOWN;
+			}*/
+			//error = message.statusCode == 200 ? Modem::NONE : Modem::UNKNOWN;
+		} else {
+	#if defined DEBUG_MODEM
+			cout << "NEED to seppuku" << endl;
+	#endif
+		}
+		modem->PowerOff(); // We want to idle now between heartbeats - Anthony
 	}
-	//modem.PowerOff(); // We want to idle now between heartbeats - Anthony
-	
 	return error;
 }
 
@@ -775,7 +808,7 @@ void modemThread(bool RTC_fitted)
 			has_modem_info_sent = true;
 		}
 		
-		while(modem_fail_count <= 3){
+		while(modem_fail_count <= 0){
 			
 			
 			/*Heartbeat heartbeat = getHeartbeat(true);
@@ -813,7 +846,7 @@ void modemThread(bool RTC_fitted)
 					try{
 						//cout << "YTHJEKJYTJIKJUEUJBTTBVRTYREYTEVYERTYVE" << endl;
 						modem_info_t info;
-						if(modem.getInfo(info)){
+						if(modem->getInfo(info)){
 							extra_content = "{\"phone\":" + info.phone + ","\
 							"\"imei\":\"" + info.imei + "\","\
 							"\"rssi\":" + to_string(info.rssi) + ","\
@@ -885,7 +918,11 @@ void modemThread(bool RTC_fitted)
 				break;
 			} else {
 				logModem(to_string(time(nullptr)) + " ERROR Modem failed to send heartbeat");
+				
 				modem_fail_count++;
+				s3state.var.last_heartbeat_time = time(nullptr);
+
+				/*
 #if defined DEBUG_MODEM
 				cout << "##### Failed to connect." << endl << "Incrementing error count to: " << modem_fail_count << endl;
 #endif
@@ -899,9 +936,9 @@ void modemThread(bool RTC_fitted)
 							//reboot()
 							if(!triedReset){
 								triedReset = true;
-								logModem(to_string(time(nullptr)) + " INFO Hard reseting modem.");
-								modem.hardReset();
-								modem.Open(SERIAL_PORT, 115200);
+								logModem(to_string(time(nullptr)) + " INFO Hard reseting modem->");
+								modem->hardReset();
+								modem->Open(SERIAL_PORT, 115200);
 							} else {
 								triedReset = false;
 								if(RTC_fitted){
@@ -919,9 +956,10 @@ void modemThread(bool RTC_fitted)
 					} catch(...){}
 					modem_IO_mutex.unlock();
 				}
-				logModem(to_string(time(nullptr)) + " INFO Soft reseting modem.");
-				//modem.Reset(); // This function does not do anything. read comment under modem.cpp - Anthony
+				logModem(to_string(time(nullptr)) + " INFO Soft reseting modem->");
+				//modem->Reset(); // This function does not do anything. read comment under modem->cpp - Anthony
 				this_thread::sleep_for(chrono::seconds(30)); // wait before trying again;
+				*/
 			}
 		}
 	}

@@ -216,6 +216,7 @@ int main(int argc, char **argv)
 				modem->Open(SERIAL_PORT, 115200);
 			} else if(response.find("SARA-R410M")!= string::npos){
 				cout<< "INFO: uBlox modem detected, using SARA_R410M interface" << endl;
+				modem->SendCmd("+UGPIOC=16,2", response); //set GPIO1 (green LED) to indicate network status
 				delete modem;
 				modem = new SARA_R410M;
 				modem->init();

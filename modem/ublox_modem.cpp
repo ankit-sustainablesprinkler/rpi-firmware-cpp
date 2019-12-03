@@ -110,6 +110,7 @@ std::string SARA_R410M::Phone()
 {
     std::string result;
     std::string response;
+    std::cout << "getting phone params\n";
     if (modem == nullptr) {
         throw(FailureException("Modem Hardware Error", "Modem is not initialized", "device_unavailable"));
     }
@@ -124,28 +125,19 @@ std::string SARA_R410M::Phone()
   
         throw(FailureException("Hardware Error", "Failed to retrieve modem phone number.",  "service_unavailable"));
     }
-  
-    errors = 0;
-  
-    if (response.length() > 0) {
-        auto  start = response.find(',');
-        if (start == std::string::npos) {
-            result = "<invalid>";
+    std::string word;
+    std::stringstream stream(response);
+    int line = 0;
+    while( std::getline(stream, word, ',') ){
+        std::cout << word << "\n";
+        if(line == 1){
+            result = word.substr(2,11);
         }
-        else {
-            std::string cnum = response.substr(start + 1);
-            auto end = cnum.find(',');
-            if (end == std::string::npos) {
-                result = "<invalid>";
-            }
-            else {
-                result = cnum.substr(0, end);
-            }
-        }
+        line ++;
     }
-    else {
-        result = "<error>";
-    }
+    
+
+    
     return result;
 }
   
@@ -165,16 +157,7 @@ std::string SARA_R410M::IMEI()
         throw(FailureException("Hardware Error", "Failed to retrieve modem imei.", "service_unavailable"));
     }
   
-    errors = 0;
-  
-    if (response.length() > 2) {
-        result = response.substr(0, response.length() - 2);
-    }
-    else {
-        result = "<error>";
-    }
-  
-    return result;
+    return response;
 }
   
 int SARA_R410M::Signal()
@@ -344,13 +327,17 @@ bool SARA_R410M::connect()
 				}*/
 
 				std::cout << "response:\n" << response << ".\n";
+                if(response.substr(6,2) != "99"){
+                    i = -1;
+				    break;
+                }
 
-				break;
 			}
 
 			delay_ms(1000);
 
 		}
+        if(i != -1) continue;
 		modem->SendCmd("+CESQ", response);
 		delay_ms(10);
 		modem->SendCmd("+CGPADDR=1", response);

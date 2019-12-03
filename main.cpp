@@ -267,6 +267,13 @@ int main(int argc, char **argv)
 			}
 
 			//cout << "GFHRSTGHSRTHWSTHWSREH" << response << endl;
+			try{
+			extra_content = "{\"Phone\":\"" + modem->Phone() + "\",\"IMEI\":\"" + modem->IMEI() + "\"}";
+			} catch (FailureException e) {
+				cout << e.what() << endl;
+			} catch (...) {
+
+			}
 
 		} else {
 			cout<< "ERROR: No Modem resonse to ATI poll." << endl;
@@ -316,13 +323,7 @@ int main(int argc, char **argv)
 
 		//send first heartbeat
 		//string extra_content = "";
-		try{
-			extra_content = "{\"Phone\":\"" + modem->Phone() + "\",\"IMEI\":\"" + modem->IMEI() + "\"}";
-		} catch (exception e) {
-			cout << e.what() << endl;
-		} catch (...) {
-
-		}
+		
 		Heartbeat heartbeat = getHeartbeat(extra_content);
 		message_string = heartbeat.toBinary();
 		modem_cond.notify_all();

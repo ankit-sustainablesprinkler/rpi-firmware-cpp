@@ -623,39 +623,7 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 		}
 	}
 
-	//Parse feedback
-
-	if(s3state.var.current_feedback_time != midnight) //roll s3state.feedback to next day
-	{
-		cout << "New s3state.feedback log" << endl;
-		if(s3state.var.current_feedback_time){
-			cout << "Feedback ready" << endl;
-			s3state.var.current_feedback = !s3state.var.current_feedback; // alternate s3state.feedback logs
-			feedback_ready = true;
-		}
-		s3state.var.previous_feedback_time = s3state.var.current_feedback_time;
-		s3state.var.current_feedback_time = midnight;
-		s3state.feedback[s3state.var.current_feedback].manual_runs.clear();
-		s3state.feedback[s3state.var.current_feedback].zone_runs.clear();
-		s3state.feedback[s3state.var.current_feedback].zone_runs.resize(schedule.zone_duration.size());
-		for(int i = 0; i < schedule.zone_duration.size(); i++){
-			s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
-		}
-	}
-	//cout << "WHAT?? " << s3state.flow_feedback[s3state.var.current_flow_feedback].samples.size() << endl;
-	if(s3state.var.current_flow_feedback_time != midnight) //roll s3state.flow_feedback to next day
-	{
-		cout << "New s3state.flow_feedback log" << endl;
-		if(s3state.var.current_flow_feedback_time){
-			cout << "Flow Feedback ready" << endl;
-			s3state.var.current_flow_feedback = !s3state.var.current_flow_feedback; // alternate s3state.feedback logs
-			flow_feedback_ready = true;
-		}
-		s3state.var.previous_flow_feedback_time = s3state.var.current_flow_feedback_time;
-		s3state.var.current_flow_feedback_time = midnight;
-		s3state.flow_feedback[s3state.var.current_flow_feedback].samples.clear();
-		s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp = midnight;
-	}
+	
 	
 
 	//========================== Transition Events =======================
@@ -696,7 +664,8 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 
 		s3state.var.current_state_prev = s3state.var.current_state;
 	}
-
+	bool feedback_send = false;
+	bool flow_feedback_send = false;
 	if(state_changed){
 		cout << "State changed from " << s3state.var.previous_state.type << " to " << state.type << endl;
 		switch(state.type){
@@ -721,6 +690,8 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 			case MANUAL:
 
 				//Clear flags that need to be reset will manual run starts
+				feedback_send = true;
+				flow_feedback_send = true;
 				s3state.var.blocked_pump_detected = false;
 				s3state.var.unscheduled_flow = false;
 				
@@ -770,6 +741,8 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 				}
 				break;
 		}
+
+		
 			//new_sample = handlerObject.getAverage();
 		cout << "before reset " << sensor::curr_on_time << endl;
 		sensor::resetVoltage();
@@ -777,6 +750,42 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 		sensor::resetFlow();
 		s3state.var.ovc_trigger_count = 0;
 		memcpy(&s3state.var.previous_state, &state, sizeof(state));
+	}
+
+	//Parse feedback
+
+	if(feedback_send)//s3state.var.current_feedback_time != midnight) //roll s3state.feedback to next day
+	{
+		feedback_send = false;
+		cout << "New s3state.feedback log" << endl;
+		if(s3state.var.current_feedback_time){
+			cout << "Feedback ready" << endl;
+			s3state.var.current_feedback = !s3state.var.current_feedback; // alternate s3state.feedback logs
+			feedback_ready = true;
+		}
+		s3state.var.previous_feedback_time = s3state.var.current_feedback_time;
+		s3state.var.current_feedback_time = midnight;
+		s3state.feedback[s3state.var.current_feedback].manual_runs.clear();
+		s3state.feedback[s3state.var.current_feedback].zone_runs.clear();
+		s3state.feedback[s3state.var.current_feedback].zone_runs.resize(schedule.zone_duration.size());
+		for(int i = 0; i < schedule.zone_duration.size(); i++){
+			s3state.feedback[s3state.var.current_feedback].zone_runs[i].resize(schedule.zone_duration[i].size());
+		}
+	}
+	//cout << "WHAT?? " << s3state.flow_feedback[s3state.var.current_flow_feedback].samples.size() << endl;
+	if(flow_feedback_send)//s3state.var.current_flow_feedback_time != midnight) //roll s3state.flow_feedback to next day
+	{
+		flow_feedback_send = false;
+		cout << "New s3state.flow_feedback log" << endl;
+		if(s3state.var.current_flow_feedback_time){
+			cout << "Flow Feedback ready" << endl;
+			s3state.var.current_flow_feedback = !s3state.var.current_flow_feedback; // alternate s3state.feedback logs
+			flow_feedback_ready = true;
+		}
+		s3state.var.previous_flow_feedback_time = s3state.var.current_flow_feedback_time;
+		s3state.var.current_flow_feedback_time = midnight;
+		s3state.flow_feedback[s3state.var.current_flow_feedback].samples.clear();
+		s3state.flow_feedback[s3state.var.current_flow_feedback].header.timestamp = midnight;
 	}
 //	cout << "before time: " << s3state.feedback[s3state.var.current_feedback].before_time << endl;
 	//cout << "after time: " << s3state.feedback[s3state.var.current_feedback].after_time << endl;

@@ -12,7 +12,11 @@
 #include <queue>
 #include <cstdio>
 
+//lcm types
 #include "sensor_t.hpp"
+#include "cmd_key_t.hpp"
+#include "message_t.hpp"
+
 #include "base64.h"
 #include "functions.h"
 #include "schedule.h"
@@ -23,6 +27,7 @@
 #include "sensor_static.h"
 #include "state.h"
 #include "bin_protocol.h"
+#include "run_time_params.h"
 #define PLANCKS_CONSTANT 6.626E-34
 
 #define SERIAL_PORT "/dev/ttyAMA0"
@@ -42,6 +47,7 @@ void fault_reset();
 void modemThread(bool RTC_fitted);
 void WDTThread();
 void LEDThread();
+void LCMThread();
 
 mutex modem_mutex, modem_IO_mutex, modem_update_mutex;
 condition_variable modem_cond;
@@ -67,9 +73,13 @@ extern MovingAverage<float> transformer_voltage_average;
 }
 
 Modem *modem;
+lcm::LCM *Lcm = NULL;
 
 Schedule new_schedule;
 Config new_Config;
+
+RunTimeParams runTime;
+
 bool schedule_ready = false, config_ready = false, flow_config_ready = false, firstBoot = true, feedback_ready = false, 
      flow_feedback_ready = false, heartbeat_sent = false, perform_calibration = false, post_run_feedback_ready = false, post_run_flow_feedback_ready = false;
 
@@ -126,7 +136,37 @@ public:
 	sample_t current_sample;
 };
 
+class KeyHandler 
+{
+public:
+	~KeyHandler() {}
+
+	void handleMessage(const lcm::ReceiveBuffer* rbuf,	const std::string& chan, const cmd_key_t* msg)
+	{
+		cout << "Key: " << msg->key << " Value: " << msg->value << endl;
+		message_t result;
+		result.timestamp = time(NULL);
+		result.message = "Unspecified error";
+
+		ParamErrType e = runTime.setValue(msg->key, msg->value);
+		switch(e){
+			case None:
+				result.message = "Success";
+				break;
+			case KeyError:
+				result.message = string("Key Error: ") + msg->key;
+				break;
+			case ValueError:
+				result.message = string("Value Error: ") + msg->value;
+				break;
+		}
+
+		Lcm->publish("CMD_ERR", &result);
+	}
+};
+
 Handler handlerObject;
+KeyHandler keyHandlerObject;
 
 
 int main(int argc, char **argv)
@@ -182,12 +222,13 @@ int main(int argc, char **argv)
 		}
 
 
-		lcm::LCM lcm;
+		Lcm = new lcm::LCM;
 
-		if(!lcm.good())
+		if(!Lcm->good())
 			return 1;
 
-		lcm.subscribe("SENSOR", &Handler::handleMessage, &handlerObject);
+		Lcm->subscribe("SENSOR", &Handler::handleMessage, &handlerObject);
+		Lcm->subscribe("CMD", &KeyHandler::handleMessage, &keyHandlerObject);
 		
 		state_getState(s3state);
 		s3state.flow_feedback[0].header.type = bin_protocol::FLOW;
@@ -240,6 +281,7 @@ int main(int argc, char **argv)
 		thread wdt_thread(WDTThread);
 		thread modem_thread(modemThread, RTC_fitted);
 		thread led_thread(LEDThread);
+		thread lcm_thread(LCMThread);
 
 		//load config and schedule
 		Schedule schedule;
@@ -297,7 +339,6 @@ int main(int argc, char **argv)
 		while(true)
 		{
 			//cout << "Ready: " << feedback_ready << endl;
-			//lcm.handleTimeout(50);
 			//cout << extra_content <<endl;
 			modem_update_mutex.lock();
 			if(schedule_ready){
@@ -466,7 +507,7 @@ int main(int argc, char **argv)
 			}
 
 			if(config.heartbeat_period < HEARTBEAT_MIN_PERIOD) config.heartbeat_period = HEARTBEAT_MIN_PERIOD;
-			if(time(nullptr) - s3state.var.last_heartbeat_time > config.heartbeat_period){
+			if(time(nullptr) - s3state.var.last_heartbeat_time > config.heartbeat_period && runTime.isModemEnabled()){
 				
 				s3state.var.last_heartbeat_time = time(nullptr);
 
@@ -662,7 +703,7 @@ bool runSchedule(run_state_t &state, const Schedule &schedule, const Config &con
 			case AFTER:
 			{
 				cout << "Allowing OTA" << endl;
-				if(getUpTime() > 600000)
+				if(getUpTime() > 86400 * runTime.getRunTimeInterval()-3600)
 				{
 					rebootSystem();
 					exit(2);
@@ -974,6 +1015,15 @@ void WDTThread()
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		digitalWrite(PIN_WDT_RESET, LOW);
 		this_thread::sleep_for(chrono::seconds(10));
+	}
+}
+
+void LCMThread()
+{
+	while(Lcm){
+		Lcm->handle();
+
+
 	}
 }
 

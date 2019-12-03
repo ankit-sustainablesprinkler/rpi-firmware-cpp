@@ -1,0 +1,5 @@
+struct message_t
+{
+	string message;
+	int32_t timestamp;
+}

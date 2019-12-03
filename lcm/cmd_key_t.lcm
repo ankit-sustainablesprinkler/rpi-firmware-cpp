@@ -1,0 +1,5 @@
+struct cmd_key_t
+{
+	string key;
+	string value;
+}

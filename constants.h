@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define FIRMWARE_VERSION 21 //added support of ublox modems
+#define FIRMWARE_VERSION 22
 
 #define PIN_WDT_RESET 2
 #define PIN_RELAY 3

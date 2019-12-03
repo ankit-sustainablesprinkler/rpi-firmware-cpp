@@ -111,7 +111,7 @@ void sensorRead(run_state_t &run_state, s3state_t &state, bin_protocol::Schedule
 			if(flow_raw > 0 && solenoid_current < current_threshold){
 				if(!state.var.unscheduled_flow){
 					unscheduled_flow_count ++;
-					if(unscheduled_flow_count > 60){
+					if(unscheduled_flow_count > (60 * flow_configuration.leak_count_thresh)){
 						std::cout << "Leak detected" << std::endl;
 						state.var.unscheduled_flow_time = time(NULL);
 						state.alert_feedback.alerts.push_back(std::make_tuple<int,char,std::string>(state.var.unscheduled_flow_time, 'U',"Flow: " + std::to_string(per_minute_flow.getAverage())));

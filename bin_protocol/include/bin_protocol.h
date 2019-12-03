@@ -289,6 +289,7 @@ public:
 	float flow_thr_min;
 	uint8_t flow_interval;
 	uint8_t flow_count_thr;
+	uint8_t leak_count_thresh;
 };
 
 class CalibrationResult

@@ -941,6 +941,7 @@ FlowConfiguration::FlowConfiguration()
 	this->flow_thr_min = 0;
 	this->flow_interval = 0;
 	this->flow_count_thr = 0;
+	this->leak_count_thresh = 0;
 }
 
 bool FlowConfiguration::fromBinary(const std::vector<uint8_t> &data)
@@ -957,6 +958,7 @@ bool FlowConfiguration::fromBinary(const std::vector<uint8_t> &data)
 				memcpy(&this->flow_thr_min, &data[HEADER_SIZE+11], 4);
 				this->flow_interval = data[HEADER_SIZE+15] | (data[HEADER_SIZE+16] << 8);
 				this->flow_count_thr = data[HEADER_SIZE + 17];
+				this->leak_count_thresh = data[HEADER_SIZE + 18];
 				return true;
 			}
 		}
@@ -987,6 +989,7 @@ std::vector<uint8_t> FlowConfiguration::toBinary() const
 	data.push_back(this->flow_interval & 0xFF);
 	data.push_back((this->flow_interval >> 8) & 0xFF);
 	data.push_back(this->flow_count_thr);
+	data.push_back(this->leak_count_thresh);
 
 	putSizeIntoData(data);
 	calculateCRC(data);

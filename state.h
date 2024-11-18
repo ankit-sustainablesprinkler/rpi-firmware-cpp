@@ -18,12 +18,12 @@ namespace bin_protocol{
 }
 
 struct s3state_var_t {
-	time_t last_heartbeat_time = 0;
-	time_t current_feedback_time = 0;
-	time_t previous_feedback_time = 0;
-	time_t current_flow_feedback_time = 0;
-	time_t previous_flow_feedback_time = 0;
-	run_state_t previous_state;
+	time_t last_heartbeat_time = 0;			//4
+	time_t current_feedback_time = 0;//4
+	time_t previous_feedback_time = 0;//4
+	time_t current_flow_feedback_time = 0;//4
+	time_t previous_flow_feedback_time = 0;//4
+	run_state_t previous_state;//1
 	int current_feedback = 0;
 	int current_flow_feedback = 0;
 	bool voltage_state = false;

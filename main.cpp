@@ -1,3 +1,5 @@
+#include <string>
+#include <sstream> 
 #include <iostream>
 #include <fstream>
 #include <ctime>
@@ -29,7 +31,10 @@
 #include "bin_protocol.h"
 #include "run_time_params.h"
 #define PLANCKS_CONSTANT 6.626E-34
-
+#define RCLOCAL_FILE "/etc/rc.local"
+#define OLD_CONFIG "echo mcp7940x 0x68 > /sys/class/i2c-adapter/i2c-1/new_device"
+#define NEW_CONFIG_1 "sudo hwclock -s"
+#define NEW_CONFIG_2 "date"
 #define SERIAL_PORT "/dev/ttyAMA0"
 #define WDT_INTERRUPT_PERIOD 30
 
@@ -220,7 +225,29 @@ int main(int argc, char **argv)
 			rebootSystem();
 			exit(2);
 		}
+		std::ifstream etc_config1( "/etc/modules" );
+		bool found_rtc_config1 = false;
+		for( std::string line; getline( etc_config1, line ); )
+		{
+			if(line == "rtc-mcp7940x")
+			{
+				found_rtc_config1 = true;
+			}
+		}
+		etc_config1.close();	
 
+		if(found_rtc_config1){
+			cout << "found rtc in /etc/modules" << endl;
+		} else {
+			cout << "RTC not enabled in /etc/modules. modifying /etc/modules" << endl;
+			ofstream etc_config1_write;
+			etc_config1_write.open ("/etc/modules", ios::out | ios::app);
+			etc_config1_write << "\nrtc-mcp7940x\n";
+			etc_config1_write.close();
+
+			rebootSystem();
+			exit(2);
+		}
 
 		Lcm = new lcm::LCM;
 

@@ -62,8 +62,8 @@ uint32_t getUpTime()
 void setSystemTime(time_t time)
 {
 	std::cout << "SYS_INFO: Setting date" << std::endl;
-	runCommand("date +%s -s @" + std::to_string(time));
-	runCommand("hwclock -w");
+	runCommand("sudo date +%s -s @" + std::to_string(time));
+	runCommand("sudo hwclock -w");
 }
 
 int getHeartbeatFailCount()
